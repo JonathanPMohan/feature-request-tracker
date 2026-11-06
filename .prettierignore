@@ -1,0 +1,3 @@
+# Prettier already skips everything in .gitignore (node_modules, .next, ...).
+# npm writes this file itself; formatting it would only create noise in diffs.
+package-lock.json
