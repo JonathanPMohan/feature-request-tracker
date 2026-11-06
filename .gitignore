@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# claude code (personal settings; shared settings in .claude/settings.json are committed)
+.claude/settings.local.json
