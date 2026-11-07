@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Least privilege: these jobs only need to read the code.
+permissions:
+  contents: read
+
+# A new push to the same PR cancels the run that's now out of date.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Typecheck, lint, format, unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # `npm ci` installs exactly what package-lock.json says, and fails if
+      # package.json and the lockfile disagree. Use it instead of `npm install` in CI.
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run test:unit
+
+  e2e:
+    name: End-to-end (local production build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Downloads Chromium plus the Linux system libraries it needs.
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      # On failure, keep Playwright's traces so the failure can be replayed.
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-results
+          path: test-results/
+          retention-days: 7
