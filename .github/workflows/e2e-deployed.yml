@@ -57,7 +57,9 @@ jobs:
           #    A fork PR's commit never is, so forks never run with the secret.
           #    GitHub's API matches the branch name exactly and uses the workflow's
           #    own token, so this also works if the repo is ever made private.
-          if [[ ! "$DEPLOYED_REF" =~ ^[A-Za-z0-9._/-]+$ ]]; then
+          #    '..' is rejected so a crafted name can't walk the API path elsewhere
+          #    (e.g. ../tags/v1); git doesn't allow '..' in branch names anyway.
+          if [[ ! "$DEPLOYED_REF" =~ ^[A-Za-z0-9._/-]+$ || "$DEPLOYED_REF" == *..* ]]; then
             skip "the deployment's branch name is missing or unusual."
           fi
           head=$(gh api "repos/$REPO/git/ref/heads/$DEPLOYED_REF" --jq .object.sha 2>/dev/null) || head=""

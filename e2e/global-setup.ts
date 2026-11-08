@@ -44,7 +44,7 @@ export default async function globalSetup(config: FullConfig) {
     // host, such as Vercel's login page.
     const status = response.status();
     const location = response.headers()["location"];
-    const redirectHost = location ? new URL(location, baseURL).host : undefined;
+    const redirectHost = location ? hostOf(location, baseURL) : undefined;
     const isRedirect = status >= 300 && status < 400;
     if (!response.ok() && !(isRedirect && redirectHost === deploymentHost)) {
       const where = redirectHost ? `, redirecting to ${redirectHost}` : "";
@@ -60,10 +60,18 @@ export default async function globalSetup(config: FullConfig) {
       (cookie) => cookie.domain.replace(/^\./, "") === deploymentHost,
     );
     if (deploymentCookies.length === 0) {
-      throw new Error("Vercel bypass: no cookie was set for the deployment.");
+      // The page loaded without a redirect, so the deployment isn't protected and
+      // tests don't need a cookie. A redirect without a cookie is a real failure.
+      if (!response.ok()) {
+        throw new Error("Vercel bypass: no cookie was set for the deployment.");
+      }
+      console.warn(
+        `Vercel bypass: ${deploymentHost} isn't protected; testing without a cookie.`,
+      );
     }
 
     // Save only after validating, and only this deployment's cookies.
+    // (Always written, so the storageState path in playwright.config.ts exists.)
     await mkdir(dirname(BYPASS_STATE_PATH), { recursive: true });
     await writeFile(
       BYPASS_STATE_PATH,
@@ -77,5 +85,14 @@ export default async function globalSetup(config: FullConfig) {
     }
   } finally {
     await context.dispose();
+  }
+}
+
+/** The host a redirect points to, or a placeholder if the header isn't a valid URL. */
+function hostOf(location: string, baseURL: string): string {
+  try {
+    return new URL(location, baseURL).host;
+  } catch {
+    return "(an invalid Location header)";
   }
 }
