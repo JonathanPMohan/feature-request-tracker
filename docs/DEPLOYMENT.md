@@ -21,7 +21,7 @@ The app deploys to Vercel from GitHub. These settings live outside the code, so 
 
 ## How a deployment gets tested
 
-1. A push to any branch triggers `ci.yml`, and Vercel builds a deployment.
+1. Vercel builds a deployment for every push to any branch. `ci.yml` runs on pull requests and on pushes to `main`.
 2. When the deployment succeeds, Vercel sends `repository_dispatch` (`vercel.deployment.success`).
 3. `e2e-deployed.yml`, which must exist on `main`, verifies the URL and branch, then runs the Playwright smoke test against the deployment.
 4. `e2e/global-setup.ts` exchanges the bypass secret for a cookie scoped to that one deployment. The browser never sees the secret.
