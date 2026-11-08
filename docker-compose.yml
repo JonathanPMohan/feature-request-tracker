@@ -1,0 +1,33 @@
+# Local Postgres for development and tests.
+#   Start:            docker compose up -d
+#   Stop:             docker compose down
+#   Reset (wipe all): docker compose down -v && docker compose up -d
+services:
+  db:
+    # Same major version as Neon (production). Debian-based rather than Alpine,
+    # because Alpine's C library can sort text differently from Neon.
+    image: postgres:18
+    environment:
+      # Local-only credentials. They are not secrets: the port below only
+      # listens on this machine. Production uses Neon's credentials, which
+      # never get committed.
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: feature_requests_dev
+    ports:
+      # 127.0.0.1 means only this computer can connect, not others on your network.
+      - "127.0.0.1:5432:5432"
+    volumes:
+      # Postgres 18's image keeps data under /var/lib/postgresql (older versions
+      # used .../data). The named volume keeps data across restarts.
+      - pgdata:/var/lib/postgresql
+      # Scripts here run once, when the volume is first created.
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d feature_requests_dev"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+
+volumes:
+  pgdata:

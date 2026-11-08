@@ -31,6 +31,13 @@ Jonathan is a former PM returning to development and learning Claude Code. Act a
 
 The pre-commit hook runs `typecheck`, `lint` and `test:unit`. CI runs the full suite.
 
+## Local database
+
+Postgres 18 in Docker (`docker-compose.yml`): `feature_requests_dev` and `feature_requests_test` on `127.0.0.1:5432`, user and password `postgres`. See `docs/LOCAL_DEVELOPMENT.md`.
+
+- **Do not run streaming Docker commands from your shell.** That means `docker run`, `docker compose up`, `logs -f` and `events`. They hang there, even though they work in Jonathan's Terminal.
+- **Ask Jonathan to run them instead,** then verify by connecting to the database directly (e.g. `nc -z 127.0.0.1 5432`, or a Node `pg` query).
+
 ## Rules
 
 - **Every check passes before every commit.** Never use `git commit --no-verify`.
