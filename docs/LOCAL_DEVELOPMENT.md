@@ -45,6 +45,15 @@ docker compose down -v && docker compose up -d   # reset: wipe all local data
 
 Integration tests refuse to run unless `TEST_DATABASE_URL` names a database ending in `_test`, so they can't wipe dev or production data by mistake.
 
+## Claude Code guardrails
+
+A Claude Code hook (`.claude/hooks/block-env-files.mjs`, registered in `.claude/settings.json`) stops Claude from reading or changing `.env` files through any tool: Bash, Read, Edit, Write, Grep, Glob, or NotebookEdit. `.env.example` is allowed. If the hook itself fails, the action is blocked (`onFailure: "block"`).
+
+- **What it checks:** the full text of Bash commands, and only the path fields of file tools. Editing a document that _mentions_ `.env` is fine.
+- **A false positive:** any Bash command that merely mentions a `.env` name is blocked too, such as a heredoc or a commit message passed with `-m`. Claude uses the Edit tool for such files, and `git commit -F <file>` for such messages.
+- **A guardrail against accidents, not a security boundary:** an indirect command, such as a recursive `grep` over the whole folder or a file name built from pieces, isn't caught. Real secrets also never live in local files: production values are only in Vercel.
+- **Tested:** the matching logic has unit tests (`.claude/hooks/env-guard.test.mjs`), which run with `npm run test:unit` and in the pre-commit hook.
+
 ## Known issue: Docker commands from Claude Code's shell
 
 Docker commands that **stream** a response hang when run from Claude Code's shell. That includes `docker run`, `docker compose up`, `docker logs -f` and `docker events`. The container is created but never started, because the client never gets an answer to its `attach`/`wait` requests.

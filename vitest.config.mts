@@ -21,7 +21,8 @@ export default defineConfig({
         test: {
           // Fast, no database, safe to run on every commit (the pre-commit hook runs these).
           name: "unit",
-          include: ["src/**/*.test.ts"],
+          // .claude/hooks: the Claude Code hook that guards .env files.
+          include: ["src/**/*.test.ts", ".claude/hooks/**/*.test.mjs"],
           exclude: ["src/**/*.int.test.ts"],
         },
       },
