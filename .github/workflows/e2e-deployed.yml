@@ -1,29 +1,51 @@
 name: E2E (deployed)
 
-# Vercel reports each deployment to GitHub. When one succeeds (a PR preview
-# or production), run the smoke test against the URL Vercel actually deployed.
+# Runs the smoke test against a real Vercel deployment.
+#
+# Vercel sends a `repository_dispatch` event when a deployment (PR preview or
+# production) succeeds. GitHub only delivers that event to workflows that exist
+# on the default branch (main), so this starts working once it's merged.
+#
+# It can also be run by hand from the Actions tab against any URL.
 on:
-  deployment_status:
+  repository_dispatch:
+    types: [vercel.deployment.success]
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Deployment URL to test
+        required: true
 
 permissions:
   contents: read
 
 jobs:
   smoke:
-    name: Smoke test (${{ github.event.deployment_status.environment }})
-    if: github.event.deployment_status.state == 'success'
+    name: Smoke test (${{ github.event.client_payload.environment || 'manual' }})
     runs-on: ubuntu-latest
     steps:
+      # Test the exact commit Vercel deployed. A manual run uses the branch selected in the UI.
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.client_payload.git.sha || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
+      # Event data goes through environment variables, never pasted straight into
+      # the script. This avoids a class of bugs where data gets run as shell code.
+      - name: Resolve deployment URL
+        env:
+          RAW_URL: ${{ github.event.client_payload.url || inputs.url }}
+        run: |
+          case "$RAW_URL" in
+            http*) echo "PLAYWRIGHT_BASE_URL=$RAW_URL" >> "$GITHUB_ENV" ;;
+            *)     echo "PLAYWRIGHT_BASE_URL=https://$RAW_URL" >> "$GITHUB_ENV" ;;
+          esac
       - run: npm run test:e2e
         env:
-          PLAYWRIGHT_BASE_URL: ${{ github.event.deployment_status.environment_url }}
           # Repository secret, copied from Vercel's "Protection Bypass for Automation".
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       - uses: actions/upload-artifact@v7
