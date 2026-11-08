@@ -33,7 +33,7 @@ docker compose down -v && docker compose up -d   # reset: wipe all local data
 - **Local only:** the database only accepts connections from this computer (`127.0.0.1:5432`), with user and password `postgres`.
 - **Not secrets:** these credentials only work locally. Production credentials come from Neon and are never committed.
 - **Migrations:** after changing `src/db/schema.ts`, run `npm run db:generate`, review the new SQL file in `drizzle/`, then run `npm run db:migrate`. Drizzle records applied migrations in `drizzle.__drizzle_migrations`, so each file is applied once.
-- **Same as production:** the image is Debian-based `postgres:18`, matching Neon's major version. It isn't the Alpine image, which can sort text differently.
+- **Same as production:** the image is Debian-based `postgres:18`, matching Neon's major version, and its databases use Neon's collation, `C.UTF-8`. Collation decides text sort order: `C.UTF-8` puts every capitalized word first ("Banana, Zebra, apple"). Collation is fixed when a database is created, so after changing it, reset with `docker compose down -v && docker compose up -d`.
 
 ## Tests
 

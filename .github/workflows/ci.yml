@@ -47,6 +47,8 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
           POSTGRES_DB: feature_requests_test
+          # Match Neon's collation (text sort order). See docker-compose.yml.
+          POSTGRES_INITDB_ARGS: "--locale=C.UTF-8"
         ports:
           - 5432:5432
         # Don't start the job's steps until the database accepts connections.

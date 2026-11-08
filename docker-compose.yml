@@ -14,6 +14,10 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: feature_requests_dev
+      # Match Neon's collation (C.UTF-8). Collation decides text sort order, and
+      # en_US (this image's default) sorts "apple" before "Banana" while Neon
+      # sorts "Banana" first. Only applies when the volume is first created.
+      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8"
     ports:
       # 127.0.0.1 means only this computer can connect, not others on your network.
       - "127.0.0.1:5432:5432"
