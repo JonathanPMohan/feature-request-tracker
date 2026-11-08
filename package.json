@@ -10,22 +10,32 @@
     "typecheck": "next typegen && tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:unit": "vitest run",
-    "test:watch": "vitest",
+    "test:unit": "vitest run --project unit",
+    "test:watch": "vitest --project unit",
     "prepare": "husky",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:studio": "drizzle-kit studio",
+    "test:integration": "vitest run --project integration"
   },
   "dependencies": {
+    "@vercel/functions": "^3.11.0",
+    "drizzle-orm": "^0.45.4",
     "next": "16.4.5",
+    "pg": "^8.23.1",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "server-only": "^0.0.1"
   },
   "devDependencies": {
     "@playwright/test": "^1.65.0",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
     "eslint-config-prettier": "10.1.8",
@@ -36,7 +46,8 @@
     "vitest": "^5.1.0"
   },
   "allowScripts": {
-    "fsevents": false
+    "fsevents": false,
+    "esbuild": false
   },
   "engines": {
     "node": "26.x"
