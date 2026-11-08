@@ -72,6 +72,28 @@ jobs:
     name: End-to-end (local production build)
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # The app needs a real database to build and run (the auth route loads the
+    # db module). Same Postgres setup as the integration job.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: feature_requests_e2e
+          POSTGRES_INITDB_ARGS: "--locale=C.UTF-8"
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d feature_requests_e2e"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/feature_requests_e2e
+      # A production build refuses Better Auth's default secret. This dummy
+      # value only exists in CI, where there are no real users.
+      BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0000000000
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -79,13 +101,11 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Create the tables, as a Vercel deploy does before building.
+      - run: npm run db:migrate
       # Downloads Chromium plus the Linux system libraries it needs.
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
-        env:
-          # A production build refuses Better Auth's default secret. This dummy
-          # value only exists in CI, where there are no real users.
-          BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0000000000
       # On failure, keep Playwright's traces so the failure can be replayed.
       - uses: actions/upload-artifact@v7
         if: failure()
