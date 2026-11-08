@@ -22,6 +22,4 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  /* The scaffold hard-coded Arial here, which silently overrode the Geist font loaded in layout.tsx. */
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
