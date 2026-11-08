@@ -13,40 +13,78 @@ on:
   workflow_dispatch:
     inputs:
       url:
-        description: Deployment URL to test
+        description: Deployment URL to test (https://<name>.vercel.app)
         required: true
 
 permissions:
   contents: read
 
 jobs:
+  # Decides whether it's safe to send the bypass secret anywhere. No secret is
+  # available in this job, and it runs no code from the repo.
+  verify:
+    name: Verify deployment target
+    runs-on: ubuntu-latest
+    outputs:
+      url: ${{ steps.check.outputs.url }}
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - id: check
+        # Event data goes through environment variables, never pasted straight into
+        # the script. This avoids a class of bugs where data gets run as shell code.
+        env:
+          RAW_URL: ${{ github.event.client_payload.url || inputs.url }}
+          DEPLOYED_REF: ${{ github.event.client_payload.git.ref }}
+          DEPLOYED_SHA: ${{ github.event.client_payload.git.sha }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          # 1. The secret only ever goes to a Vercel deployment. The pattern must match
+          #    the WHOLE value, so empty input, other hosts, and line breaks all fail.
+          url="$RAW_URL"
+          case "$url" in http*) ;; *) url="https://$url" ;; esac
+          if [[ ! "$url" =~ ^https://[a-z0-9-]+\.vercel\.app/?$ ]]; then
+            echo "::error::Refusing to test that URL: it must look like https://<name>.vercel.app"
+            exit 1
+          fi
+
+          # 2. For Vercel events, only test a commit that is the current tip of a
+          #    branch in THIS repo. A fork PR's commit never is, so forks are skipped.
+          #    A deployment overtaken by a newer push is skipped too; the newer
+          #    deployment gets its own run.
+          if [ "$EVENT" = "repository_dispatch" ]; then
+            head=$(git ls-remote "https://github.com/$REPO" "refs/heads/$DEPLOYED_REF" | cut -f1)
+            if [ -z "$head" ] || [ "$head" != "$DEPLOYED_SHA" ]; then
+              echo "::notice::Skipping: the deployed commit is not the current tip of a branch in $REPO (fork PR or newer push)."
+              exit 0
+            fi
+          fi
+
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "sha=$DEPLOYED_SHA" >> "$GITHUB_OUTPUT"
+
   smoke:
     name: Smoke test (${{ github.event.client_payload.environment || 'manual' }})
+    needs: verify
+    # An empty URL means verify decided to skip.
+    if: needs.verify.outputs.url != ''
     runs-on: ubuntu-latest
     steps:
       # Test the exact commit Vercel deployed. A manual run uses the branch selected in the UI.
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.client_payload.git.sha || github.ref }}
+          ref: ${{ needs.verify.outputs.sha || github.ref }}
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
-      # Event data goes through environment variables, never pasted straight into
-      # the script. This avoids a class of bugs where data gets run as shell code.
-      - name: Resolve deployment URL
-        env:
-          RAW_URL: ${{ github.event.client_payload.url || inputs.url }}
-        run: |
-          case "$RAW_URL" in
-            http*) echo "PLAYWRIGHT_BASE_URL=$RAW_URL" >> "$GITHUB_ENV" ;;
-            *)     echo "PLAYWRIGHT_BASE_URL=https://$RAW_URL" >> "$GITHUB_ENV" ;;
-          esac
       - run: npm run test:e2e
         env:
+          PLAYWRIGHT_BASE_URL: ${{ needs.verify.outputs.url }}
           # Repository secret, copied from Vercel's "Protection Bypass for Automation".
+          # global-setup.ts exchanges it for a cookie scoped to this deployment.
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
       - uses: actions/upload-artifact@v7
         if: failure()
