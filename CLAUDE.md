@@ -18,16 +18,19 @@ Jonathan is a former PM returning to development and learning Claude Code. Act a
 
 ## Commands
 
-| Command                           | What it does                                      |
-| --------------------------------- | ------------------------------------------------- |
-| `npm run dev`                     | Dev server at http://localhost:3000               |
-| `npm run typecheck`               | TypeScript check, no build                        |
-| `npm run lint`                    | ESLint                                            |
-| `npm run format` / `format:check` | Prettier: fix / report only                       |
-| `npm run test:unit`               | Unit tests (Vitest), no database                  |
-| `npm run test:watch`              | Unit tests, re-run on save                        |
-| `npm run test:e2e`                | Playwright smoke test (builds and starts the app) |
-| `npm run build`                   | Production build                                  |
+| Command                           | What it does                                             |
+| --------------------------------- | -------------------------------------------------------- |
+| `npm run dev`                     | Dev server at http://localhost:3000                      |
+| `npm run typecheck`               | TypeScript check, no build                               |
+| `npm run lint`                    | ESLint                                                   |
+| `npm run format` / `format:check` | Prettier: fix / report only                              |
+| `npm run test:unit`               | Unit tests (Vitest), no database                         |
+| `npm run test:watch`              | Unit tests, re-run on save                               |
+| `npm run test:e2e`                | Playwright smoke test (builds and starts the app)        |
+| `npm run db:generate`             | Write a SQL migration from changes to `src/db/schema.ts` |
+| `npm run db:migrate`              | Apply pending migrations to `DATABASE_URL`               |
+| `npm run db:studio`               | Browse the database in a web UI                          |
+| `npm run build`                   | Production build                                         |
 
 The pre-commit hook runs `typecheck`, `lint` and `test:unit`. CI runs the full suite.
 
