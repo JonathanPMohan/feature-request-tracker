@@ -9,15 +9,18 @@ on:
 permissions:
   contents: read
 
-# A new push to the same PR cancels the run that's now out of date.
+# A new push to the same PR cancels the run that's now out of date. Pushes to
+# main are never cancelled, so every commit on main gets a complete CI run.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   checks:
     name: Typecheck, lint, format, unit tests
     runs-on: ubuntu-latest
+    # GitHub's default is 6 hours; a hung job should fail fast instead.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -35,6 +38,7 @@ jobs:
   e2e:
     name: End-to-end (local production build)
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7

@@ -5,7 +5,10 @@ import { BYPASS_STATE_PATH, vercelBypassSecret } from "./e2e/vercel-bypass";
 // Two modes:
 // - PLAYWRIGHT_BASE_URL unset: build the app, start the production server, test localhost.
 // - PLAYWRIGHT_BASE_URL set (e.g. a Vercel preview URL): test that deployment directly.
-const deployedUrl = process.env.PLAYWRIGHT_BASE_URL;
+// `|| undefined` treats an empty string as unset, the same way everywhere below.
+const deployedUrl = process.env.PLAYWRIGHT_BASE_URL || undefined;
+// Not 3000, so a running `npm run dev` can never stand in for the production build.
+const localPort = 3100;
 const isCI = Boolean(process.env.CI);
 
 export default defineConfig({
@@ -19,7 +22,7 @@ export default defineConfig({
   retries: isCI ? 1 : 0,
   reporter: isCI ? [["github"], ["list"]] : "list",
   use: {
-    baseURL: deployedUrl ?? "http://localhost:3000",
+    baseURL: deployedUrl ?? `http://localhost:${localPort}`,
     // Records a step-by-step trace when a test is retried, for debugging CI failures.
     trace: "on-first-retry",
     // Tests start with the bypass cookie, never the secret itself.
@@ -30,10 +33,11 @@ export default defineConfig({
     ? undefined
     : {
         // A production build, not `next dev`, so tests see what users will see.
-        command: "npm run build && npm run start",
-        url: "http://localhost:3000",
-        // Locally, reuse a server you already have running; CI always starts fresh.
-        reuseExistingServer: !isCI,
+        command: `npm run build && npm run start -- --port ${localPort}`,
+        url: `http://localhost:${localPort}`,
+        // Always start our own server. Reusing one could mean testing whatever else
+        // happens to be on the port; if the port is busy, fail loudly instead.
+        reuseExistingServer: false,
         timeout: 180_000,
       },
 });

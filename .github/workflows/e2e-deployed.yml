@@ -25,6 +25,8 @@ jobs:
   verify:
     name: Verify deployment target
     runs-on: ubuntu-latest
+    # GitHub's default is 6 hours; a hung job should fail fast instead.
+    timeout-minutes: 5
     outputs:
       url: ${{ steps.check.outputs.url }}
       sha: ${{ steps.check.outputs.sha }}
@@ -69,6 +71,7 @@ jobs:
     # An empty URL means verify decided to skip.
     if: needs.verify.outputs.url != ''
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       # Test the exact commit Vercel deployed. A manual run uses the branch selected in the UI.
       - uses: actions/checkout@v7
