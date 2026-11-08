@@ -1,0 +1,106 @@
+name: E2E (deployed)
+
+# Runs the smoke test against a real Vercel deployment.
+#
+# Vercel sends a `repository_dispatch` event when a deployment (PR preview or
+# production) succeeds. GitHub only delivers that event to workflows that exist
+# on the default branch (main), so this starts working once it's merged.
+#
+# There's deliberately no manual "Run workflow" option: a typed-in URL can't be
+# proven to belong to this project, and the bypass secret must never go elsewhere.
+on:
+  repository_dispatch:
+    types: [vercel.deployment.success]
+
+permissions:
+  contents: read
+
+jobs:
+  # Decides whether it's safe to send the bypass secret anywhere. No secret is
+  # available in this job, and it runs no code from the repo.
+  verify:
+    name: Verify deployment target
+    runs-on: ubuntu-latest
+    # GitHub's default is 6 hours; a hung job should fail fast instead.
+    timeout-minutes: 5
+    outputs:
+      url: ${{ steps.check.outputs.url }}
+      sha: ${{ steps.check.outputs.sha }}
+    steps:
+      - id: check
+        # Event data goes through environment variables, never pasted straight into
+        # the script. This avoids a class of bugs where data gets run as shell code.
+        env:
+          RAW_URL: ${{ github.event.client_payload.url }}
+          DEPLOYED_REF: ${{ github.event.client_payload.git.ref }}
+          DEPLOYED_SHA: ${{ github.event.client_payload.git.sha }}
+          REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          skip() {
+            echo "::warning::Deployed smoke test SKIPPED: $1"
+            echo "### Deployed smoke test skipped" >> "$GITHUB_STEP_SUMMARY"
+            echo "$1" >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          }
+
+          # 1. The secret only ever goes to a Vercel deployment. The pattern must match
+          #    the WHOLE value, so empty input, other hosts, and line breaks all fail.
+          url="$RAW_URL"
+          case "$url" in http*) ;; *) url="https://$url" ;; esac
+          if [[ ! "$url" =~ ^https://[a-z0-9-]+\.vercel\.app/?$ ]]; then
+            echo "::error::Refusing to test that URL: it must look like https://<name>.vercel.app"
+            exit 1
+          fi
+
+          # 2. Only test a commit that is the current tip of a branch in THIS repo.
+          #    A fork PR's commit never is, so forks never run with the secret.
+          #    GitHub's API matches the branch name exactly and uses the workflow's
+          #    own token, so this also works if the repo is ever made private.
+          #    '..' is rejected so a crafted name can't walk the API path elsewhere
+          #    (e.g. ../tags/v1); git doesn't allow '..' in branch names anyway.
+          if [[ ! "$DEPLOYED_REF" =~ ^[A-Za-z0-9._/-]+$ || "$DEPLOYED_REF" == *..* ]]; then
+            skip "the deployment's branch name is missing or unusual."
+          fi
+          head=$(gh api "repos/$REPO/git/ref/heads/$DEPLOYED_REF" --jq .object.sha 2>/dev/null) || head=""
+          if [ -z "$head" ]; then
+            skip "branch '$DEPLOYED_REF' doesn't exist in $REPO (likely a fork PR)."
+          fi
+          if [ "$head" != "$DEPLOYED_SHA" ]; then
+            skip "a newer commit was pushed to '$DEPLOYED_REF'; its own deployment will be tested."
+          fi
+
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+          echo "sha=$DEPLOYED_SHA" >> "$GITHUB_OUTPUT"
+
+  smoke:
+    name: Smoke test (${{ github.event.client_payload.environment }})
+    needs: verify
+    # An empty URL means verify decided to skip. The job then shows as
+    # "skipped" (grey), not passed, with the reason in the run summary.
+    if: needs.verify.outputs.url != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      # Test the exact commit Vercel deployed.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.verify.outputs.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ needs.verify.outputs.url }}
+          # Repository secret, copied from Vercel's "Protection Bypass for Automation".
+          # global-setup.ts exchanges it for a cookie scoped to this deployment.
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-results-deployed
+          path: test-results/
+          retention-days: 7
