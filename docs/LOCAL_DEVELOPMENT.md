@@ -10,6 +10,7 @@
 ```
 npm install
 cp .env.example .env     # local database settings; .env is gitignored
+openssl rand -base64 32  # paste the output into .env as BETTER_AUTH_SECRET=
 docker compose up -d     # start Postgres (run in your own Terminal; see the known issue below)
 npm run db:migrate       # apply migrations to the dev database
 npm run dev              # http://localhost:3000

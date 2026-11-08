@@ -82,6 +82,10 @@ jobs:
       # Downloads Chromium plus the Linux system libraries it needs.
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+        env:
+          # A production build refuses Better Auth's default secret. This dummy
+          # value only exists in CI, where there are no real users.
+          BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0000000000
       # On failure, keep Playwright's traces so the failure can be replayed.
       - uses: actions/upload-artifact@v7
         if: failure()
