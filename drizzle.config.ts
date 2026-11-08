@@ -20,8 +20,10 @@ if (!url) {
 
 export default defineConfig({
   dialect: "postgresql",
-  // The data model (Jonathan's). drizzle-kit compares it to the database to write migrations.
-  schema: "./src/db/schema.ts",
+  // drizzle-kit compares these to the database to write migrations:
+  // schema.ts is the app's data model (Jonathan's); auth-schema.ts is generated
+  // by `npm run auth:generate` (Better Auth's tables; don't edit by hand).
+  schema: ["./src/db/schema.ts", "./src/db/auth-schema.ts"],
   // Generated SQL migrations. Committed, reviewed like code, applied in order.
   out: "./drizzle",
   dbCredentials: { url },
