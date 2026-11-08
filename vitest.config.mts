@@ -43,8 +43,15 @@ export default defineConfig({
           include: ["src/**/*.int.test.ts"],
           // Every test file shares one database, so run files one at a time.
           fileParallelism: false,
-          // The app's db module reads DATABASE_URL. Point it at the test database.
-          env: { DATABASE_URL: process.env.TEST_DATABASE_URL ?? "" },
+          env: {
+            // The app's db module reads DATABASE_URL. Point it at the test database.
+            DATABASE_URL: process.env.TEST_DATABASE_URL ?? "",
+            // Fixed test-only auth settings, so tests don't depend on a local
+            // secret. Not a real secret: test databases hold no real users.
+            BETTER_AUTH_SECRET:
+              "test-only-secret-not-used-outside-integration-tests",
+            BETTER_AUTH_URL: "http://localhost:3000",
+          },
           globalSetup: ["./src/test/integration/global-setup.ts"],
           setupFiles: ["./src/test/integration/setup.ts"],
         },
