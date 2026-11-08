@@ -35,6 +35,16 @@ docker compose down -v && docker compose up -d   # reset: wipe all local data
 - **Migrations:** after changing `src/db/schema.ts`, run `npm run db:generate`, review the new SQL file in `drizzle/`, then run `npm run db:migrate`. Drizzle records applied migrations in `drizzle.__drizzle_migrations`, so each file is applied once.
 - **Same as production:** the image is Debian-based `postgres:18`, matching Neon's major version. It isn't the Alpine image, which can sort text differently.
 
+## Tests
+
+| Command                    | Needs          | What it runs                                                                            |
+| -------------------------- | -------------- | --------------------------------------------------------------------------------------- |
+| `npm run test:unit`        | nothing        | `*.test.ts`: logic with no database. The pre-commit hook runs these.                    |
+| `npm run test:integration` | local Postgres | `*.int.test.ts` against `feature_requests_test`. Every table is wiped before each test. |
+| `npm run test:e2e`         | nothing        | Playwright smoke test against a local production build                                  |
+
+Integration tests refuse to run unless `TEST_DATABASE_URL` names a database ending in `_test`, so they can't wipe dev or production data by mistake.
+
 ## Known issue: Docker commands from Claude Code's shell
 
 Docker commands that **stream** a response hang when run from Claude Code's shell. That includes `docker run`, `docker compose up`, `docker logs -f` and `docker events`. The container is created but never started, because the client never gets an answer to its `attach`/`wait` requests.
