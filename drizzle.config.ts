@@ -7,7 +7,11 @@ import { defineConfig } from "drizzle-kit";
 // CI and on Vercel the real environment always wins.
 if (existsSync(".env")) process.loadEnvFile(".env");
 
-const url = process.env.DATABASE_URL;
+// Migrations need a direct connection. Neon's pooled connection (DATABASE_URL on
+// Vercel) runs in transaction mode, which lacks session features such as advisory
+// locks that migration tools rely on. The Neon integration also sets
+// DATABASE_URL_UNPOOLED. Locally there's no pooler, so DATABASE_URL is direct.
+const url = process.env.DATABASE_URL_UNPOOLED || process.env.DATABASE_URL;
 if (!url) {
   throw new Error(
     "DATABASE_URL is not set. For local development: cp .env.example .env",
