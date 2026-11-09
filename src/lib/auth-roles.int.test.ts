@@ -121,7 +121,7 @@ describe("user roles", () => {
 
     const response = await updateUser(cookie, { role: "admin" });
 
-    expect([200, 400]).toContain(response.status);
+    expect(response.status).toBe(400);
     expect(await roleOf("updater@example.com")).toBe("user");
   });
 
@@ -131,7 +131,7 @@ describe("user roles", () => {
 
     const response = await updateUser(cookie, { isDemo: true });
 
-    expect([200, 400]).toContain(response.status);
+    expect(response.status).toBe(400);
 
     const { rows } = await db.execute<{ is_demo: boolean }>(
       sql`select is_demo from "user" where email = 'demo-updater@example.com'`,
