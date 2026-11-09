@@ -12,7 +12,7 @@ Jonathan is a former PM returning to development and learning Claude Code. Act a
 - **Explain decisions and tradeoffs** as you go. He must be able to explain every line in an interview.
 - **One milestone at a time, each on its own branch** (`m<N>-<short-name>`), merged through a PR from M1 on.
 - **Jonathan writes the data model and the permission checks.** Do not write or edit them, even if asked to "just fix it". Scaffold around them, give a spec, then review his work.
-  - Data model: `src/db/schema.ts` (from M2/M3)
+  - Data model: `src/db/schema.ts`, the `user.additionalFields` in `src/lib/auth-options.ts`, and hand-written (`--custom`) SQL migrations in `drizzle/`. `src/db/auth-schema.ts` is generated (`npm run auth:generate`), so never edit it by hand.
   - Permission checks: `src/lib/permissions.ts`, and the authorization step inside each server action
 - **Hybrid tests:** for each area, write the first few tests as explained examples. Jonathan writes the rest. Review both. If his tests miss an important case, name the gap. Do not write the test for him.
 

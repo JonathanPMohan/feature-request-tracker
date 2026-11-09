@@ -24,6 +24,22 @@ const baseURL = process.env.BETTER_AUTH_URL || {
 export const authOptions = {
   baseURL,
   emailAndPassword: { enabled: true },
+  user: {
+    additionalFields: {
+      role: {
+        type: "string",
+        required: true, // R1: every account has a role
+        input: false, // R3: only server code can set this
+        defaultValue: "user", // R2: new accounts are 'user'
+      },
+      isDemo: {
+        type: "boolean", // true means this is the public demo account
+        required: true, // never empty, so the R5 rule always has a clear answer
+        input: false, // R3: only server code can set this
+        defaultValue: false, // new sign-ups are never the demo account
+      },
+    },
+  },
   // Must be the last plugin. It applies the cookies Better Auth sets (e.g. on
   // sign-in) when it's called from a Next.js server action.
   plugins: [nextCookies()],
