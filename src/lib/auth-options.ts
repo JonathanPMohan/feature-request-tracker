@@ -60,6 +60,20 @@ export const authOptions = {
     },
   },
   /**
+   * How long a sign-in lasts. These are Better Auth's defaults, written out
+   * because the tests depend on them and a reviewer will ask.
+   * - A session expires 7 days after it was last extended.
+   * - Using a session that's more than a day old extends it by 7 days, so
+   *   people who visit regularly stay signed in, and an abandoned session
+   *   (like one on a shared computer) expires within a week.
+   * Each session is a row in the `session` table, so signing out deletes it,
+   * and a copied cookie stops working everywhere at once.
+   */
+  session: {
+    expiresIn: 60 * 60 * 24 * 7,
+    updateAge: 60 * 60 * 24,
+  },
+  /**
    * Rate limits for every request to /api/auth/*, counted per client IP.
    *
    * - On everywhere (Better Auth's default is production only), so dev and the
