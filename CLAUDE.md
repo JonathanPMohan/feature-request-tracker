@@ -14,7 +14,7 @@ Jonathan is a former PM returning to development and learning Claude Code. Act a
 - **Jonathan writes the data model and the permission checks.** Do not write or edit them, even if asked to "just fix it". Scaffold around them, give a spec, then review his work.
   - Data model: `src/db/schema.ts`, the `user.additionalFields` in `src/lib/auth-options.ts`, and hand-written (`--custom`) SQL migrations in `drizzle/`. `src/db/auth-schema.ts` is generated (`npm run auth:generate`), so never edit it by hand.
   - Permission checks: `src/lib/permissions.ts`, and the authorization step inside each server action
-- **Hybrid tests:** for each area, write the first few tests as explained examples. Jonathan writes the rest. Review both. If his tests miss an important case, name the gap. Do not write the test for him.
+- **Tests:** Claude writes them as working, commented examples. Jonathan learns best by studying working code, so comments explain _why_ each case matters (the risk it covers), not just what it does. He may still write some himself; review those and name any missing case.
 
 ## Commands
 
@@ -49,7 +49,7 @@ Postgres 18 in Docker (`docker-compose.yml`): `feature_requests_dev` and `featur
 - **Enforce every rule on the server.** Hiding UI is not a security control.
 - **Tests sit next to the code they test.** `*.test.ts` = unit (no database). `*.int.test.ts` = integration (test database). Integration tests wipe every table before each test, and refuse to run unless the database name ends in `_test`.
 - **Pages you leave stay in the DOM, hidden** (`cacheComponents` keeps them for instant "back"). In Playwright, find elements inside `page.getByRole("main")` or with `getByRole`, never a bare `getByLabel`/`locator`, or tests match the hidden page and time out. Forms reset themselves after a successful submit.
-- **Better Auth rate-limits sign-in and sign-up in production builds**, including `npm run test:e2e` (3 per 10 seconds per IP, in memory). The e2e suite fits within that; adding more auth tests may not.
+- **Better Auth rate-limits sign-in and sign-up in production builds**, including `npm run test:e2e` (3 per 10 seconds per IP, in memory). Locally each e2e test sends its own made-up `x-forwarded-for`, so tests don't share a limit. On Vercel that header can't be faked, so only one auth test runs against previews.
 - **Never read or print `.env` files or secrets.** `.env.example` holds the variable names, without values. Enforced by a PreToolUse hook (`.claude/hooks/block-env-files.mjs`) for Bash and all file tools.
   - It matches the text of Bash commands, so any command that merely _mentions_ a dotenv file name is blocked too, including a heredoc or a `git commit -m` message.
   - Workaround: change files with the Edit/Write tools (only their paths are checked), and write commit messages to a scratch file, then `git commit -F <file>`.
