@@ -40,6 +40,35 @@ export const authOptions = {
       },
     },
   },
+  /**
+   * Rate limits for every request to /api/auth/*, counted per client IP.
+   *
+   * - On everywhere (Better Auth's default is production only), so dev and the
+   *   integration tests run the same rules as the live site.
+   * - Stored in Postgres, not memory. Vercel runs many short-lived servers;
+   *   each would keep its own in-memory count, so the limit would barely apply.
+   *   The check and the increment are one conditional UPDATE, so simultaneous
+   *   requests can't all slip under the limit.
+   * - Sign-up: 5 per hour (docs/PLAN.md). The window restarts at the last
+   *   allowed request, so after 5 an IP must stay quiet for a full hour.
+   * - Everything else keeps Better Auth's defaults: sign-in 3 per 10 seconds,
+   *   other endpoints 100 per 10 seconds.
+   */
+  rateLimit: {
+    enabled: true,
+    storage: "database",
+    customRules: {
+      "/sign-up/email": { window: 60 * 60, max: 5 },
+    },
+  },
+  advanced: {
+    ipAddress: {
+      // The client's IP. On Vercel this header is set by Vercel itself and
+      // overwrites any value a visitor sends, so it can't be spoofed. (It's
+      // Better Auth's default; written out because the limit depends on it.)
+      ipAddressHeaders: ["x-forwarded-for"],
+    },
+  },
   // Must be the last plugin. It applies the cookies Better Auth sets (e.g. on
   // sign-in) when it's called from a Next.js server action.
   plugins: [nextCookies()],
