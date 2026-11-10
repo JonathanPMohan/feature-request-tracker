@@ -78,6 +78,8 @@ Checked automatically on every deployment instead: `/api/auth/ok` responds (so t
 1. Vercel builds a deployment for every push to any branch. `ci.yml` runs on pull requests and on pushes to `main`.
 2. When the deployment succeeds, Vercel sends `repository_dispatch` (`vercel.deployment.success`).
 3. `e2e-deployed.yml`, which must exist on `main`, verifies the URL and branch, then runs the Playwright smoke test against the deployment.
+   - **Previews** are tested at their own deployment URL.
+   - **Production** is tested at `https://feature-request-tracker.vercel.app`, the address visitors use. Each deployment's own URL is behind Vercel Authentication, and Better Auth refuses sign-ins from any origin other than `BETTER_AUTH_URL`, so testing sign-in there would fail for a reason no visitor can hit.
 4. `e2e/global-setup.ts` exchanges the bypass secret for a cookie scoped to that one deployment. The browser never sees the secret.
 
 Known gaps are tracked in issues #2, #3, and #4.
