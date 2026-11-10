@@ -26,6 +26,7 @@ export async function seedDemoAccount(): Promise<SeedDemoResult> {
         email: DEMO_ACCOUNT.email,
         password: DEMO_ACCOUNT.password,
       },
+      headers: thisDeploymentHost(),
     });
   }
 
@@ -38,6 +39,22 @@ export async function seedDemoAccount(): Promise<SeedDemoResult> {
     .where(eq(user.email, DEMO_ACCOUNT.email));
 
   return existing ? "already-exists" : "created";
+}
+
+/**
+ * Better Auth needs to know which site it's acting for. With BETTER_AUTH_URL
+ * set (local, CI, production), that's fixed and these headers are ignored.
+ * Vercel previews leave it unset, and Better Auth takes the address from each
+ * request's hostname. A script has no request, so it supplies the hostname of
+ * the deployment being built: Vercel sets VERCEL_URL during every build, and
+ * it matches the allowed preview hostnames in auth-options.ts.
+ *
+ * (Better Auth's other suggestion, a `fallback` baseURL, would also apply to
+ * real requests from unknown hostnames, so it isn't used.)
+ */
+function thisDeploymentHost(): Headers | undefined {
+  const host = process.env.VERCEL_URL;
+  return host ? new Headers({ host }) : undefined;
 }
 
 async function findDemo() {

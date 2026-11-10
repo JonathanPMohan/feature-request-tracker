@@ -94,6 +94,9 @@ jobs:
       # A production build refuses Better Auth's default secret. This dummy
       # value only exists in CI, where there are no real users.
       BETTER_AUTH_SECRET: ci-only-secret-not-used-anywhere-else-0000000000
+      # The address the e2e server runs at (playwright.config.ts). The demo
+      # seed needs it: Better Auth must know which site it's acting for.
+      BETTER_AUTH_URL: http://localhost:3100
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
