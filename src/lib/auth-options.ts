@@ -19,6 +19,9 @@ import { nextCookies } from "better-auth/next-js";
  */
 const baseURL = process.env.BETTER_AUTH_URL || {
   allowedHosts: ["feature-request-tracker-*-jonathanpmohan.vercel.app"],
+  // Previews are always https. Stating it makes their session cookies Secure
+  // by configuration; otherwise Better Auth infers it from NODE_ENV.
+  protocol: "https" as const,
 };
 
 export const authOptions = {
@@ -95,6 +98,11 @@ export const authOptions = {
     },
   },
   advanced: {
+    // Reject requests from other websites (cross-site request forgery): a
+    // POST must come from one of our own pages. On by default, EXCEPT when
+    // NODE_ENV is "test", where Better Auth turns it off. Set explicitly so the
+    // integration tests run the same check production does.
+    disableOriginCheck: false,
     ipAddress: {
       // The client's IP. On Vercel this header is set by Vercel itself and
       // overwrites any value a visitor sends, so it can't be spoofed. (It's

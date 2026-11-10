@@ -50,6 +50,22 @@ Migrations run **during Vercel's build**: `vercel.json` sets the build command t
 - **Generated, not hand-written:** Better Auth's tables are generated into `src/db/auth-schema.ts` by `npm run auth:generate`. The generator reads the shared options in `src/lib/auth-options.ts` through `scripts/auth-schema.config.mts`, since it can't load the app's `server-only` auth module.
 - **Then migrated like any other change:** `npm run db:generate` turns the schema into a migration, which deploys apply as usual.
 
+**Every deploy** runs `db:migrate`, then `db:seed-demo` (creates the demo account if it's missing), then the build (`vercel.json`).
+
+### Production checklist
+
+Some checks can't be automated from the repo, because they need the Vercel or Neon dashboard. Run through these before the first production deploy with auth, and again after changing auth settings.
+
+| Check                                             | Where                                                                        | Expect                                                                                                                                                   |
+| ------------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Production has its own `BETTER_AUTH_SECRET`       | Vercel → Settings → Environment Variables                                    | Set for **Production**, and a separate entry for **Preview**. Never one shared entry                                                                     |
+| `BETTER_AUTH_URL` is the exact production address | Same page                                                                    | **Production only:** `https://feature-request-tracker.vercel.app`, with no trailing slash. Not set for Preview                                           |
+| The rate limit sees real visitor addresses        | Neon → the preview branch → SQL Editor: `select key, count from rate_limit;` | Keys start with an IP address (e.g. `203.0.113.7\|/sign-in/email`). A key starting `no-trusted-ip` means everyone shares one limit: stop and investigate |
+| After the merge: the production deploy built      | Vercel → Deployments                                                         | The production build ran the migrations and the seed without errors                                                                                      |
+| After the merge: the production smoke test passed | GitHub → Actions → E2E (deployed)                                            | Includes the demo sign-in and the Secure-cookie check                                                                                                    |
+
+Checked automatically on every deployment instead: `/api/auth/ok` responds (so the secret is set), the demo account can sign in, and the session cookie is `Secure`, `HttpOnly` and `SameSite=Lax`.
+
 ## GitHub repository
 
 | Setting                                  | Where                                      | Why                                                                                       |
