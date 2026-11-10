@@ -34,6 +34,7 @@ jobs:
           RAW_URL: ${{ github.event.client_payload.url }}
           DEPLOYED_REF: ${{ github.event.client_payload.git.ref }}
           DEPLOYED_SHA: ${{ github.event.client_payload.git.sha }}
+          ENVIRONMENT: ${{ github.event.client_payload.environment }}
           REPO: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -68,6 +69,14 @@ jobs:
           fi
           if [ "$head" != "$DEPLOYED_SHA" ]; then
             skip "a newer commit was pushed to '$DEPLOYED_REF'; its own deployment will be tested."
+          fi
+
+          # 3. Production: test the address visitors use. A deployment's own URL
+          #    (feature-request-tracker-<id>-...) is behind Vercel Authentication,
+          #    so no visitor ever sees it, and Better Auth rightly refuses
+          #    sign-ins from it: in production, only BETTER_AUTH_URL is our site.
+          if [ "$ENVIRONMENT" = "production" ]; then
+            url="https://feature-request-tracker.vercel.app"
           fi
 
           echo "url=$url" >> "$GITHUB_OUTPUT"
