@@ -48,6 +48,8 @@ Postgres 18 in Docker (`docker-compose.yml`): `feature_requests_dev` and `featur
 - **Never bypass dependency errors** with `npm install --force` or `--legacy-peer-deps`. Find and fix the actual conflict.
 - **Enforce every rule on the server.** Hiding UI is not a security control.
 - **Tests sit next to the code they test.** `*.test.ts` = unit (no database). `*.int.test.ts` = integration (test database). Integration tests wipe every table before each test, and refuse to run unless the database name ends in `_test`.
+- **Pages you leave stay in the DOM, hidden** (`cacheComponents` keeps them for instant "back"). In Playwright, find elements inside `page.getByRole("main")` or with `getByRole`, never a bare `getByLabel`/`locator`, or tests match the hidden page and time out. Forms reset themselves after a successful submit.
+- **Better Auth rate-limits sign-in and sign-up in production builds**, including `npm run test:e2e` (3 per 10 seconds per IP, in memory). The e2e suite fits within that; adding more auth tests may not.
 - **Never read or print `.env` files or secrets.** `.env.example` holds the variable names, without values. Enforced by a PreToolUse hook (`.claude/hooks/block-env-files.mjs`) for Bash and all file tools.
   - It matches the text of Bash commands, so any command that merely _mentions_ a dotenv file name is blocked too, including a heredoc or a `git commit -m` message.
   - Workaround: change files with the Edit/Write tools (only their paths are checked), and write commit messages to a scratch file, then `git commit -F <file>`.

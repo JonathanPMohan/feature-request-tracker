@@ -95,6 +95,9 @@ jobs:
       - run: npm run test:e2e
         env:
           PLAYWRIGHT_BASE_URL: ${{ needs.verify.outputs.url }}
+          # "preview" or "production". Tests that create accounts only run on
+          # previews (see e2e/auth.spec.ts).
+          DEPLOYMENT_ENVIRONMENT: ${{ github.event.client_payload.environment }}
           # Repository secret, copied from Vercel's "Protection Bypass for Automation".
           # global-setup.ts exchanges it for a cookie scoped to this deployment.
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
