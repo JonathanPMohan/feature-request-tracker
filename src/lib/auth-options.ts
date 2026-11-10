@@ -24,6 +24,25 @@ const baseURL = process.env.BETTER_AUTH_URL || {
 export const authOptions = {
   baseURL,
   emailAndPassword: { enabled: true },
+  /**
+   * Endpoints turned off (404) for everyone. v1 has no UI for any of them, and
+   * the demo account's password is public, so in a visitor's hands each one
+   * could spoil the demo for every other reviewer:
+   * - change-password: lock everyone out
+   * - update-user: rename the shared account to something offensive
+   * - list-sessions: see other reviewers' IP addresses and browsers
+   * - revoke-session(s), revoke-other-sessions: sign every other reviewer out
+   * Fewer endpoints is also less to secure. Turn one back on only with a
+   * permission check that refuses the demo account.
+   */
+  disabledPaths: [
+    "/change-password",
+    "/update-user",
+    "/list-sessions",
+    "/revoke-session",
+    "/revoke-sessions",
+    "/revoke-other-sessions",
+  ],
   user: {
     additionalFields: {
       role: {

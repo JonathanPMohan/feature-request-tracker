@@ -46,6 +46,45 @@ describe("Better Auth route handler", () => {
   });
 });
 
+// The demo account's password is public, so these endpoints are turned off
+// for everyone (see disabledPaths in auth-options.ts). Tested while signed
+// in: a 404 for a visitor alone could just mean "you need to sign in first".
+describe("disabled endpoints", () => {
+  it.each([
+    ["POST", "/change-password"],
+    ["POST", "/update-user"],
+    ["GET", "/list-sessions"],
+    ["POST", "/revoke-session"],
+    ["POST", "/revoke-sessions"],
+    ["POST", "/revoke-other-sessions"],
+  ])("%s %s returns 404 even when signed in", async (method, path) => {
+    const signUp = await signUpWithPassword(
+      "signed-in@example.com",
+      "12345678",
+    );
+    const cookie = signUp.headers
+      .getSetCookie()
+      .map((c) => c.split(";")[0])
+      .join("; ");
+    expect(cookie).not.toBe("");
+
+    const handler = method === "GET" ? GET : POST;
+    const response = await handler(
+      new Request(`http://localhost:3000/api/auth${path}`, {
+        method,
+        headers: {
+          "content-type": "application/json",
+          origin: "http://localhost:3000",
+          cookie,
+        },
+        body: method === "GET" ? undefined : JSON.stringify({}),
+      }),
+    );
+
+    expect(response.status).toBe(404);
+  });
+});
+
 // Better Auth's default minimum is 8 characters. Testing both sides of the
 // boundary (7 fails, 8 works) proves where the line is, not just that some
 // short password fails.

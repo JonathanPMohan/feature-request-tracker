@@ -115,13 +115,18 @@ describe("user roles", () => {
     expect(await roleOf("attacker@example.com")).not.toBe("admin");
   });
 
-  // R3: "update my profile" can't make someone an admin
+  // R3: "update my profile" can't make someone an admin.
+  //
+  // update-user is turned off (disabledPaths in auth-options.ts), so the
+  // request gets 404: there's no endpoint at all. `input: false` stays as a
+  // second layer. If update-user is ever turned back on, change these to
+  // expect 400, the status `input: false` gives.
   it("cannot become an admin through update-user", async () => {
     const cookie = await signUpAndGetCookie("updater@example.com");
 
     const response = await updateUser(cookie, { role: "admin" });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
     expect(await roleOf("updater@example.com")).toBe("user");
   });
 
@@ -131,7 +136,7 @@ describe("user roles", () => {
 
     const response = await updateUser(cookie, { isDemo: true });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(404);
 
     const { rows } = await db.execute<{ is_demo: boolean }>(
       sql`select is_demo from "user" where email = 'demo-updater@example.com'`,
