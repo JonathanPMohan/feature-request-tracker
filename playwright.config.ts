@@ -23,8 +23,11 @@ export default defineConfig({
   reporter: isCI ? [["github"], ["list"]] : "list",
   use: {
     baseURL: deployedUrl ?? `http://localhost:${localPort}`,
-    // Records a step-by-step trace when a test is retried, for debugging CI failures.
-    trace: "on-first-retry",
+    // Records a step-by-step trace when a test is retried, for debugging CI
+    // failures. NEVER against a deployment: a trace stores every cookie, and
+    // the Vercel bypass cookie is a JWT that contains the bypass secret itself.
+    // This repo is public, so failure artifacts are downloadable by anyone.
+    trace: deployedUrl ? "off" : "on-first-retry",
     // Tests start with the bypass cookie, never the secret itself.
     storageState: vercelBypassSecret() ? BYPASS_STATE_PATH : undefined,
   },
