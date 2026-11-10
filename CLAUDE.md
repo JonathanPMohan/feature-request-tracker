@@ -12,9 +12,9 @@ Jonathan is a former PM returning to development and learning Claude Code. Act a
 - **Explain decisions and tradeoffs** as you go. He must be able to explain every line in an interview.
 - **One milestone at a time, each on its own branch** (`m<N>-<short-name>`), merged through a PR from M1 on.
 - **Jonathan writes the data model and the permission checks.** Do not write or edit them, even if asked to "just fix it". Scaffold around them, give a spec, then review his work.
-  - Data model: `src/db/schema.ts` (from M2/M3)
+  - Data model: `src/db/schema.ts`, the `user.additionalFields` in `src/lib/auth-options.ts`, and hand-written (`--custom`) SQL migrations in `drizzle/`. `src/db/auth-schema.ts` is generated (`npm run auth:generate`), so never edit it by hand.
   - Permission checks: `src/lib/permissions.ts`, and the authorization step inside each server action
-- **Hybrid tests:** for each area, write the first few tests as explained examples. Jonathan writes the rest. Review both. If his tests miss an important case, name the gap. Do not write the test for him.
+- **Tests:** Claude writes them as working, commented examples. Jonathan learns best by studying working code, so comments explain _why_ each case matters (the risk it covers), not just what it does. He may still write some himself; review those and name any missing case.
 
 ## Commands
 
@@ -31,6 +31,8 @@ Jonathan is a former PM returning to development and learning Claude Code. Act a
 | `npm run db:generate`             | Write a SQL migration from changes to `src/db/schema.ts`                      |
 | `npm run db:migrate`              | Apply pending migrations to `DATABASE_URL`                                    |
 | `npm run db:studio`               | Browse the database in a web UI                                               |
+| `npm run db:seed-demo`            | Create the demo account if missing (idempotent; runs on every Vercel deploy)  |
+| `npm run make-admin <email>`      | Promote an account to admin (refuses the demo account)                        |
 | `npm run build`                   | Production build                                                              |
 
 The pre-commit hook runs `typecheck`, `lint` and `test:unit`. CI runs the full suite.
@@ -48,6 +50,9 @@ Postgres 18 in Docker (`docker-compose.yml`): `feature_requests_dev` and `featur
 - **Never bypass dependency errors** with `npm install --force` or `--legacy-peer-deps`. Find and fix the actual conflict.
 - **Enforce every rule on the server.** Hiding UI is not a security control.
 - **Tests sit next to the code they test.** `*.test.ts` = unit (no database). `*.int.test.ts` = integration (test database). Integration tests wipe every table before each test, and refuse to run unless the database name ends in `_test`.
+- **Pages you leave stay in the DOM, hidden** (`cacheComponents` keeps them for instant "back"). In Playwright, find elements inside `page.getByRole("main")` or with `getByRole`, never a bare `getByLabel`/`locator`, or tests match the hidden page and time out. Forms reset themselves after a successful submit.
+- **Better Auth rate-limits every `/api/auth/*` request, everywhere** (dev, tests, production), counted per IP in the `rate_limit` table. Sign-up: 5 per hour; sign-in: 3 per 10 seconds. Config: `rateLimit` in `src/lib/auth-options.ts`. If dev sign-ups get blocked, empty that table in the dev database. Locally each e2e test sends its own made-up `x-forwarded-for`, so tests don't share a limit. On Vercel that header can't be faked, so only one auth test runs against previews.
+- **Better Auth's timestamps are `timestamp` (no time zone), stored as UTC.** Drizzle reads them correctly; raw SQL through `pg` reads them as the machine's local time. In raw SQL, say `... at time zone 'UTC'`. New tables (M4) should use `timestamp with time zone`.
 - **Never read or print `.env` files or secrets.** `.env.example` holds the variable names, without values. Enforced by a PreToolUse hook (`.claude/hooks/block-env-files.mjs`) for Bash and all file tools.
   - It matches the text of Bash commands, so any command that merely _mentions_ a dotenv file name is blocked too, including a heredoc or a `git commit -m` message.
   - Workaround: change files with the Edit/Write tools (only their paths are checked), and write commit messages to a scratch file, then `git commit -F <file>`.

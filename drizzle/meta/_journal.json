@@ -1,1 +1,34 @@
-{ "version": "7", "dialect": "postgresql", "entries": [] }
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794177864055,
+      "tag": "0000_better_auth_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794190952512,
+      "tag": "0001_add-user-role-and-demo",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794191177162,
+      "tag": "0002_user-role-rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794293061051,
+      "tag": "0003_better-auth-rate-limit",
+      "breakpoints": true
+    }
+  ]
+}

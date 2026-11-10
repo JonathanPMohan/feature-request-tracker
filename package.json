@@ -17,10 +17,14 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio",
-    "test:integration": "vitest run --project integration"
+    "db:seed-demo": "tsx --conditions=react-server --env-file-if-exists=.env scripts/seed-demo.ts",
+    "make-admin": "tsx --conditions=react-server --env-file-if-exists=.env scripts/make-admin.ts",
+    "test:integration": "vitest run --project integration",
+    "auth:generate": "auth generate --config scripts/auth-schema.config.mts --adapter drizzle --dialect postgresql --output src/db/auth-schema.ts --yes && prettier --write src/db/auth-schema.ts"
   },
   "dependencies": {
     "@vercel/functions": "^3.11.0",
+    "better-auth": "^1.7.18",
     "drizzle-orm": "^0.45.4",
     "next": "16.4.5",
     "pg": "^8.23.1",
@@ -35,6 +39,7 @@
     "@types/pg": "^8.23.1",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "auth": "1.7.18",
     "drizzle-kit": "^0.31.11",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
@@ -42,6 +47,7 @@
     "husky": "^9.1.7",
     "prettier": "3.9.10",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "vitest": "^5.1.0"
   },

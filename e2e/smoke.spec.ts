@@ -13,3 +13,12 @@ test("home page loads", async ({ page }) => {
     page.getByRole("heading", { level: 1, name: "Feature Requests" }),
   ).toBeVisible();
 });
+
+// A deploy without BETTER_AUTH_SECRET still builds, but every auth request fails
+// with 500. This catches that before anyone tries to sign in.
+test("auth API is up", async ({ request }) => {
+  const response = await request.get("/api/auth/ok");
+
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toEqual({ ok: true });
+});
