@@ -101,8 +101,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      # Create the tables, as a Vercel deploy does before building.
+      # Create the tables and the demo account, as a Vercel deploy does before
+      # building.
       - run: npm run db:migrate
+      - run: npm run db:seed-demo
       # Downloads Chromium plus the Linux system libraries it needs.
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e

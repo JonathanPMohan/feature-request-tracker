@@ -31,6 +31,8 @@ Jonathan is a former PM returning to development and learning Claude Code. Act a
 | `npm run db:generate`             | Write a SQL migration from changes to `src/db/schema.ts`                      |
 | `npm run db:migrate`              | Apply pending migrations to `DATABASE_URL`                                    |
 | `npm run db:studio`               | Browse the database in a web UI                                               |
+| `npm run db:seed-demo`            | Create the demo account if missing (idempotent; runs on every Vercel deploy)  |
+| `npm run make-admin <email>`      | Promote an account to admin (refuses the demo account)                        |
 | `npm run build`                   | Production build                                                              |
 
 The pre-commit hook runs `typecheck`, `lint` and `test:unit`. CI runs the full suite.

@@ -33,7 +33,8 @@ export default defineConfig({
     ? undefined
     : {
         // A production build, not `next dev`, so tests see what users will see.
-        command: `npm run build && npm run start -- --port ${localPort}`,
+        // The seed makes sure the demo account exists (it's idempotent).
+        command: `npm run db:seed-demo && npm run build && npm run start -- --port ${localPort}`,
         url: `http://localhost:${localPort}`,
         // Better Auth must know its real address, or it rejects sign-ins coming
         // from this port as "untrusted origin".

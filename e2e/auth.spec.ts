@@ -69,7 +69,9 @@ async function signIn(page: Page, email: string, withPassword: string) {
   const main = currentPage(page);
   await main.getByLabel("Email").fill(email);
   await main.getByLabel("Password").fill(withPassword);
-  await main.getByRole("button", { name: "Sign in" }).click();
+  // exact: names match by substring otherwise, and "Sign in as the demo
+  // user" also contains "Sign in".
+  await main.getByRole("button", { name: "Sign in", exact: true }).click();
 }
 
 // Creates an account through the API instead of the form. Tests that are
