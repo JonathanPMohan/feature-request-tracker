@@ -129,3 +129,11 @@ Comments (M7), admin status changes (M8), and showing _who_ voted.
 **A. Voting only on active requests** (open, planned, in progress). Votes on a shipped or declined request are kept and frozen: they show what led to the decision. Why: Once a request is shipped or declined, more votes can’t change the decision, and freezing the count keeps an honest record of the demand behind it.
 
 **B. The demo account can't vote.** It sees the counts, and its vote button is disabled with a note to sign up; the server refuses its votes too. Why: Everyone shares the demo account, so its vote doesn’t represent a real person, and any visitor could add or remove it and skew the counts.
+
+## Walkthrough: What I saw
+
+**What a server action is on the wire.** A server action is an ordinary POST request. The URL is just the page, the `next-action` header tells Next.js which server function to run, and the body holds its arguments, like `[16,true]`. I copied a real vote as a curl command and could send it from the terminal with no page involved, so anyone can call these functions with any arguments.
+
+**Why a refusal still returns 200 OK.** The action ran and returned a value, so the HTTP status is 200. The refusal is in the body: `{"ok":false,"message":"Sign in to vote."}`. Monitoring that only watches status codes would count it as a success.
+
+**Why the disabled button didn't stop the demo account.** With `canVote` commented out, I sent a vote using the demo account's session from curl, and it was saved, even though the demo's button is disabled. The button only affects the page, and a direct request skips the page. With `canVote` restored, the same request was refused before the rate limit, so no quota was used. Authorization has to happen on the server, in every action.
