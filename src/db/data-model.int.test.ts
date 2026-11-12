@@ -1,5 +1,6 @@
-// Tests for the data model rules (D1 to D8) in docs/specs/m4-data-model.md.
-// Written before the schema: they fail until Jonathan's design exists.
+// Tests for the data model rules (D1 to D8) in docs/specs/m4-data-model.md,
+// plus Jonathan's decisions B (count votes on read) and C (deleting a user
+// cascades). Written before the schema, then extended once he decided B and C.
 //
 // Raw SQL on purpose: the tests only depend on the table and column names in
 // the spec, not on how the Drizzle schema is written. Each test starts with an
@@ -190,8 +191,23 @@ describe("text limits", () => {
       expect(await setField("     ")).toBe(CODES.CHECK);
     });
 
+    // Found by /code-review: btrim() with no second argument strips only the
+    // space character, so a title of tabs or line breaks looked "non-empty".
+    // A textarea makes "\n\n" easy to submit, so this isn't hypothetical.
+    it("rejects a value that's only tabs or line breaks", async () => {
+      expect(await setField("\t\t")).toBe(CODES.CHECK);
+      expect(await setField("\n\n")).toBe(CODES.CHECK);
+      expect(await setField(" \r\n\t ")).toBe(CODES.CHECK);
+    });
+
     it("accepts a single visible character", async () => {
       expect(await setField("x")).toBeNull();
+    });
+
+    // Control case: a stricter-than-intended fix (e.g. "no whitespace at
+    // all") would reject normal multi-line text. This proves it doesn't.
+    it("accepts visible text surrounded by line breaks", async () => {
+      expect(await setField("\nDark mode, please\n")).toBeNull();
     });
   });
 
@@ -213,6 +229,15 @@ describe("text limits", () => {
     it("rejects an empty or all-spaces body", async () => {
       expect(await comment("")).toBe(CODES.CHECK);
       expect(await comment("   ")).toBe(CODES.CHECK);
+    });
+
+    it("rejects a body that's only tabs or line breaks", async () => {
+      expect(await comment("\t")).toBe(CODES.CHECK);
+      expect(await comment("\r\n\r\n")).toBe(CODES.CHECK);
+    });
+
+    it("accepts a multi-line comment", async () => {
+      expect(await comment("+1\n\nWe need this too.")).toBeNull();
     });
   });
 });
@@ -348,8 +373,7 @@ describe("deleting", () => {
     ).toBe(1);
   });
 
-  // A deleted person's vote shouldn't keep counting. (What happens to their
-  // requests and comments is decision C; those tests come once it's made.)
+  // A deleted person's vote shouldn't keep counting.
   it("deleting a user deletes their votes", async () => {
     const author = await createUser("Author");
     const voter = await createUser("Voter");
@@ -364,6 +388,208 @@ describe("deleting", () => {
         sql`select count(*) as n from vote where request_id = ${request}`,
       ),
     ).toBe(1);
+  });
+
+  // Decision C: cascade. Removing a spammer removes everything they wrote,
+  // in one statement, with no orphans left pointing at a missing user.
+  it("deleting a user deletes their requests and comments", async () => {
+    const spammer = await createUser("Spammer");
+    const grace = await createUser("Grace");
+    const graceRequest = await createRequest(grace, { title: "Dark mode" });
+    await createRequest(spammer, { title: "Buy now" });
+    await db.execute(addComment(graceRequest, spammer, "Buy now!"));
+
+    await db.execute(sql`delete from "user" where id = ${spammer}`);
+
+    expect(
+      await count(
+        sql`select count(*) as n from feature_request where author_id = ${spammer}`,
+      ),
+    ).toBe(0);
+    expect(
+      await count(
+        sql`select count(*) as n from comment where author_id = ${spammer}`,
+      ),
+    ).toBe(0);
+  });
+
+  // The cost of cascade, written down so nobody is surprised by it: other
+  // people's votes and comments on the deleted user's requests go too
+  // (user -> feature_request -> vote/comment, two cascades in a row).
+  // For spam that's right. It's why "delete a real user" would need a
+  // different answer (set null, or soft delete) if v2 ever allows it.
+  it("deleting a user also deletes other people's votes and comments on their requests", async () => {
+    const author = await createUser("Author");
+    const grace = await createUser("Grace");
+    const request = await createRequest(author);
+    await db.execute(addVote(grace, request));
+    await db.execute(addComment(request, grace));
+
+    await db.execute(sql`delete from "user" where id = ${author}`);
+
+    expect(
+      await count(sql`select count(*) as n from vote where user_id = ${grace}`),
+    ).toBe(0);
+    expect(
+      await count(
+        sql`select count(*) as n from comment where author_id = ${grace}`,
+      ),
+    ).toBe(0);
+  });
+
+  // Control case: a cascade pointed at the wrong column could wipe far more
+  // than intended. Grace's own request, vote and comment must survive.
+  it("deleting a user leaves everyone else's content alone", async () => {
+    const spammer = await createUser("Spammer");
+    const grace = await createUser("Grace");
+    const graceRequest = await createRequest(grace);
+    await db.execute(addVote(grace, graceRequest));
+    await db.execute(addComment(graceRequest, grace));
+    await db.execute(addVote(spammer, graceRequest));
+
+    await db.execute(sql`delete from "user" where id = ${spammer}`);
+
+    expect(
+      await count(
+        sql`select count(*) as n from feature_request where id = ${graceRequest}`,
+      ),
+    ).toBe(1);
+    expect(
+      await count(
+        sql`select count(*) as n from vote where request_id = ${graceRequest}`,
+      ),
+    ).toBe(1);
+    expect(
+      await count(
+        sql`select count(*) as n from comment where request_id = ${graceRequest}`,
+      ),
+    ).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Decision B: vote counts are counted on read
+// ---------------------------------------------------------------------------
+
+describe("vote counts (count on read)", () => {
+  // The D9 home page query, written once here as the reference M5 builds on.
+  // Each line guards against a classic mistake:
+  // - LEFT JOIN, not JOIN: a plain join drops requests with no votes at all.
+  // - count(v.user_id), not count(*): with a left join, a request with no
+  //   votes still produces one row (of nulls), and count(*) would call it 1.
+  // - r.id as the last tie-breaker: without it, requests with equal votes
+  //   and equal times can swap between pages, so one shows up twice and
+  //   another never.
+  function homePage(status: string, page = 1) {
+    return db.execute<{ id: string | number; title: string; votes: string }>(
+      sql`select r.id, r.title, count(v.user_id) as votes
+          from feature_request r
+          left join vote v on v.request_id = r.id
+          where r.status = ${status}
+          group by r.id
+          order by votes desc, r.created_at desc, r.id desc
+          limit 20 offset ${(page - 1) * 20}`,
+    );
+  }
+
+  // Requests created in the same test get nearly identical timestamps, so
+  // "newest first" needs times set on purpose.
+  async function createRequestAt(authorId: string, title: string, at: string) {
+    const id = await createRequest(authorId, { title });
+    await db.execute(
+      sql`update feature_request set created_at = ${at} where id = ${id}`,
+    );
+    return id;
+  }
+
+  async function voters(n: number) {
+    const ids = [];
+    for (let i = 0; i < n; i++) ids.push(await createUser(`Voter ${i}`));
+    return ids;
+  }
+
+  it("shows a request with no votes, counted as 0", async () => {
+    const author = await createUser();
+    await createRequest(author, { title: "Nobody voted" });
+
+    const { rows } = await homePage("open");
+
+    expect(rows.map((r) => [r.title, Number(r.votes)])).toEqual([
+      ["Nobody voted", 0],
+    ]);
+  });
+
+  it("sorts by votes (highest first), then newest first", async () => {
+    const author = await createUser();
+    const [a, b, c] = await voters(3);
+    const popular = await createRequestAt(author, "Popular", "2026-01-01Z");
+    const older = await createRequestAt(author, "Older, 1 vote", "2026-01-02Z");
+    const newer = await createRequestAt(author, "Newer, 1 vote", "2026-01-03Z");
+    for (const voter of [a, b, c]) await db.execute(addVote(voter, popular));
+    await db.execute(addVote(a, older));
+    await db.execute(addVote(b, newer));
+
+    const { rows } = await homePage("open");
+
+    // "Popular" is the oldest, but votes come first. The two 1-vote
+    // requests are then ordered newest first.
+    expect(rows.map((r) => r.title)).toEqual([
+      "Popular",
+      "Newer, 1 vote",
+      "Older, 1 vote",
+    ]);
+  });
+
+  it("only shows requests with the chosen status", async () => {
+    const author = await createUser();
+    await createRequest(author, { title: "Still open" });
+    const shipped = await createRequest(author, { title: "Done" });
+    await db.execute(
+      sql`update feature_request set status = 'shipped' where id = ${shipped}`,
+    );
+
+    expect((await homePage("open")).rows.map((r) => r.title)).toEqual([
+      "Still open",
+    ]);
+    expect((await homePage("shipped")).rows.map((r) => r.title)).toEqual([
+      "Done",
+    ]);
+  });
+
+  // The point of count on read: there's no stored number to forget to
+  // update. Removing a vote, or deleting the voter, shows up immediately.
+  it("stays correct when a vote is removed or its voter is deleted", async () => {
+    const author = await createUser();
+    const [a, b] = await voters(2);
+    const request = await createRequest(author);
+    await db.execute(addVote(a, request));
+    await db.execute(addVote(b, request));
+    const votes = async () => Number((await homePage("open")).rows[0].votes);
+    expect(await votes()).toBe(2);
+
+    await db.execute(
+      sql`delete from vote where user_id = ${a} and request_id = ${request}`,
+    );
+    expect(await votes()).toBe(1);
+
+    await db.execute(sql`delete from "user" where id = ${b}`);
+    expect(await votes()).toBe(0);
+  });
+
+  // 25 requests, all with 0 votes and the same created_at: the hardest case
+  // for stable paging. Every request must appear exactly once across pages.
+  it("pages 20 at a time, without repeating or skipping a request", async () => {
+    const author = await createUser();
+    for (let i = 0; i < 25; i++) {
+      await createRequestAt(author, `Request ${i}`, "2026-01-01Z");
+    }
+
+    const page1 = (await homePage("open", 1)).rows.map((r) => String(r.id));
+    const page2 = (await homePage("open", 2)).rows.map((r) => String(r.id));
+
+    expect(page1).toHaveLength(20);
+    expect(page2).toHaveLength(5);
+    expect(new Set([...page1, ...page2]).size).toBe(25);
   });
 });
 
