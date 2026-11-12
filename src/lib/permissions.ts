@@ -6,6 +6,7 @@
 
 // `import type` is erased when compiled, so this file still imports nothing at
 // runtime (session.ts itself is server-only).
+import type { Status } from "./requests";
 import type { CurrentUser } from "./session";
 
 /**
@@ -34,4 +35,37 @@ export function canSubmitRequest(
   user: CurrentUser | null,
 ): user is CurrentUser {
   return user !== null;
+}
+
+/**
+ * May this person vote on (or take back a vote from) this request? (M6, used
+ * by the vote action and to show the button.)
+ *
+ * Spec: docs/specs/m6-voting.md: "Your two pieces", and decisions A (only
+ * active requests) and B (not the demo account). Tests: permissions.test.ts.
+ *
+ * A plain boolean, NOT a type predicate like canSubmitRequest's. A predicate
+ * also speaks when it's false: `false` would tell TypeScript "this user is
+ * not a CurrentUser", i.e. a visitor. That's true for canSubmitRequest, but
+ * canVote refuses signed-in users too (the demo account, a shipped request),
+ * so here it would be a lie the compiler believes.
+ */
+export function canVote(
+  user: CurrentUser | null,
+  request: { status: Status },
+): boolean {
+  if (user === null) {
+    return false; // visitors must sign in
+  }
+  if (user.isDemo) {
+    return false; // the shared demo account can't vote
+  }
+  const votingOpen =
+    request.status === "open" ||
+    request.status === "planned" ||
+    request.status === "in_progress";
+  if (!votingOpen) {
+    return false; // only active requests take votes; new statuses stay closed until decided
+  }
+  return true;
 }

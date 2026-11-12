@@ -23,14 +23,6 @@ export function StatusBadge({ status }: { status: Status }) {
   );
 }
 
-export function VoteCount({ votes }: { votes: number }) {
-  return (
-    <span className="tabular-nums">
-      {votes} {votes === 1 ? "vote" : "votes"}
-    </span>
-  );
-}
-
 // Dates are formatted on the server, in UTC, so every visitor sees the same
 // date and the HTML never depends on the server's own time zone.
 export function RequestDate({ date }: { date: Date }) {

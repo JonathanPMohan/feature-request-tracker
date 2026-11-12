@@ -3,8 +3,11 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { getRequest, parseRequestId } from "@/lib/requests";
+import { getCurrentUser } from "@/lib/session";
 
-import { RequestDate, StatusBadge, VoteCount } from "../request-meta";
+import { RequestDate, StatusBadge } from "../request-meta";
+import { VoteButton } from "../vote-button";
+import { renderKey, voteMode } from "../vote-mode";
 
 // One request (spec S5, S6).
 //
@@ -36,24 +39,33 @@ async function RequestDetails({
 }: {
   params: PageProps<"/requests/[id]">["params"];
 }) {
-  const { id } = await params;
+  const [{ id }, user] = await Promise.all([params, getCurrentUser()]);
   // "abc", "0" and "99999999999" can't be ids: not found, without asking the
   // database (the last one would be a database error otherwise).
   const requestId = parseRequestId(id);
   if (requestId === null) notFound();
 
-  const request = await getRequest(requestId);
+  const request = await getRequest(requestId, user?.id ?? null);
   if (!request) notFound();
 
   return (
     <article>
-      {/* break-words: a 120-character word must not overflow on a phone. */}
-      <h1 className="mt-4 break-words text-3xl font-semibold tracking-tight">
-        {request.title}
-      </h1>
+      <div className="mt-4 flex items-start gap-4">
+        <VoteButton
+          key={renderKey()}
+          requestId={request.id}
+          title={request.title}
+          votes={request.votes}
+          voted={request.votedByViewer}
+          mode={voteMode(user, request)}
+        />
+        {/* break-words: a 120-character word must not overflow on a phone. */}
+        <h1 className="min-w-0 break-words text-3xl font-semibold tracking-tight">
+          {request.title}
+        </h1>
+      </div>
       <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
         <StatusBadge status={request.status} />
-        <VoteCount votes={request.votes} />
         <span>
           by {request.authorName} on <RequestDate date={request.createdAt} />
         </span>

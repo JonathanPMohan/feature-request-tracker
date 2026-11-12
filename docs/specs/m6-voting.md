@@ -53,18 +53,22 @@ As in M5: I write everything first, with your parts throwing `Not implemented ye
 export function canVote(
   user: CurrentUser | null,
   request: { status: Status },
-): user is CurrentUser;
+): boolean;
 ```
+
+A plain `boolean`, unlike `canSubmitRequest`'s `user is CurrentUser`. A type predicate also speaks when it returns `false`: it tells TypeScript the user isn't a `CurrentUser`, meaning a visitor. `canVote` refuses signed-in users too (the demo account, a shipped request), so a predicate would make the compiler believe something false. Claude's first draft of this signature had exactly that bug; TypeScript caught it.
 
 It takes the request because of decision A: whether a vote is allowed can depend on the request's status, not only on who's asking. Decision B may make it depend on the user too. Write the rule your decisions describe; the unit tests follow them.
 
 **2. Steps 1, 2 and 4** in `setVote` (`src/app/requests/vote-action.ts`), like M5's action:
 
 1. **Who is this:** `getCurrentUser()`.
-2. **Are they allowed:** load the request with the helper provided, `getVoteTarget(requestId)`, then call `canVote`. The helper returns `null` for an id that can't exist (`abc`) as well as one that doesn't, so both get the same "not found" refusal (V8).
+2. **Are they allowed:** load the request with the helper provided, `getVoteTarget(requestId)`. It returns `null` for an id that can't exist (`abc`) as well as one that doesn't, so both get the same "not found" refusal (V8). Then refuse a visitor ("sign in"), and anyone `canVote` says no to ("not allowed").
 3. _(valid: written. Checks the yes/no value.)_
 4. **Under the limit:** `consumeRateLimit(user.id, "vote")`.
 5. _(save: written)_
+
+**Changed after `/code-review` (finding 6):** Jonathan moved the visitor check before the lookup. A signed-out POST is told to sign in whatever id it sends, without a database query, and existing and missing ids get the same answer. He also made `canVote` an allow-list (open, planned, in progress), so a status added later can't take votes until someone decides it should: it fails closed.
 
 **A wrinkle worth noticing:** "are they allowed" needs the request, so step 2 reads the database before step 3 validates the input. That's fine, because PLAN.md's order is about one thing: nothing that can still refuse may run after the rate limit, since only the rate limit uses up quota. Reads before it are free.
 
@@ -120,4 +124,6 @@ Comments (M7), admin status changes (M8), and showing _who_ voted.
 
 ## Jonathan's decisions
 
-_(A and B: what you chose, and one sentence on why.)_
+**A. Voting only on active requests** (open, planned, in progress). Votes on a shipped or declined request are kept and frozen: they show what led to the decision. Why: Once a request is shipped or declined, more votes can’t change the decision, and freezing the count keeps an honest record of the demand behind it.
+
+**B. The demo account can't vote.** It sees the counts, and its vote button is disabled with a note to sign up; the server refuses its votes too. Why: Everyone shares the demo account, so its vote doesn’t represent a real person, and any visitor could add or remove it and skew the counts.
