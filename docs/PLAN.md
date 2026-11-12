@@ -69,8 +69,8 @@ Next.js app (Vercel)
    ├─ Pages (server components) ── read data and render HTML on the server
    ├─ Server actions ───────────── handle every write
    │     each one: 1. who is this?         → Better Auth session
-   │               2. is the input valid?  → Zod schema
-   │               3. are they allowed?    → permission checks (lib/permissions)
+   │               2. are they allowed?    → permission checks (lib/permissions)
+   │               3. is the input valid?  → Zod schema
    │               4. under the rate limit? → rate-limit helper
    │               5. do it                → Drizzle query / transaction
    ├─ lib/permissions ──────────── all permission rules, as small pure functions
@@ -79,6 +79,8 @@ Next.js app (Vercel)
    ▼
 PostgreSQL ── Neon (production) · Docker (dev + test)
 ```
+
+The order matters. Checking permission before validation means a visitor is told to sign in, not to fix a form they can't submit (changed in M5, after `/code-review`). The rate limit comes last because it's the only step with a side effect: it uses up quota, so nothing that can still refuse may run after it.
 
 | Layer      | Choice                                                | Why                                                          |
 | ---------- | ----------------------------------------------------- | ------------------------------------------------------------ |
