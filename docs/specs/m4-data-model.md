@@ -106,8 +106,6 @@ When the tests pass, before asking me to review, run **`/code-review`** in Claud
 
 **D. Status: text plus a CHECK.** It matches how `role` works, so the two are consistent and easy to explain. If M8 adds a status, I only need to update the list in the CHECK.
 
-Known Limits: The database check rejects text that’s only spaces, tabs, or line breaks. Some unusual invisible characters, like non-breaking or zero-width spaces, still get through. M5’s input validation will trim and normalize text before saving, which handles those.
-
 **E. Rate limits: counters.** One row per user and action keeps the table small, with no cleanup needed, and it matches the approach Better Auth uses for sign-up. Fixed windows allow small bursts at the edges, which is acceptable for this app. The M5 helper must update the counter in a single atomic statement, so two simultaneous requests can’t both slip under the limit.
 
 **F. Indexes:**
@@ -115,3 +113,5 @@ Known Limits: The database check rejects text that’s only spaces, tabs, or lin
 - `vote`: the primary key (request, user) covers counting votes per request and "has this user voted?". `vote_user_id_idx` covers deleting a user's votes.
 - `comment`: (request, created time) loads a request's comments in order, and `comment_author_id_idx` covers deleting a user.
 - `feature_request`: (status, created time) covers filtering by status with newest first. The home page sorts by vote count, so it still counts votes for every request in that status. That’s a deliberate tradeoff at this size. If it gets slow, I’d store the vote count.
+
+**Known Limits** The database check rejects text that’s only spaces, tabs, or line breaks. Some unusual invisible characters, like non-breaking or zero-width spaces, still get through. M5’s input validation will trim and normalize text before saving, which handles those.
