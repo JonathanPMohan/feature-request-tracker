@@ -8,17 +8,17 @@ M5 to M8 build on these tables: submit and browse, voting, comments, admin. A go
 
 Tested in `src/db/data-model.int.test.ts`. Rules marked **database** must hold even if the app has a bug.
 
-| #   | Rule                                                                                                                                                                                    |
-| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D1  | Every request has a title, description, author, status, and creation time. None of them is ever null.                                                                                   |
-| D2  | **Database:** status is exactly one of `open`, `planned`, `in_progress`, `shipped`, `declined`. A new request is `open`.                                                                |
-| D3  | **Database:** text has visible content and a maximum length. A title is 1 to 120 characters, a description is 1 to 5,000, a comment is 1 to 2,000. All spaces doesn't count as content. |
-| D4  | **Database:** every request, vote and comment belongs to a user and a request that exist.                                                                                               |
-| D5  | **Database:** one vote per user per request.                                                                                                                                            |
-| D6  | **Database:** deleting a request deletes its votes and comments (admins delete spam in M8).                                                                                             |
-| D7  | **Database:** deleting a user deletes their votes. A deleted person's vote shouldn't keep counting.                                                                                     |
-| D8  | Every timestamp is `timestamp with time zone` (`timestamptz`), defaults to the current time, and is never null. (Why: CLAUDE.md, from M3 step 7.)                                       |
-| D9  | The home page query stays fast: requests filtered by status, sorted by vote count (highest first), then newest first, 20 per page. Reviewed, not tested.                                |
+| #   | Rule                                                                                                                                                                                                                     |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D1  | Every request has a title, description, author, status, and creation time. None of them is ever null.                                                                                                                    |
+| D2  | **Database:** status is exactly one of `open`, `planned`, `in_progress`, `shipped`, `declined`. A new request is `open`.                                                                                                 |
+| D3  | **Database:** text has visible content and a maximum length. A title is 1 to 120 characters, a description is 1 to 5,000, a comment is 1 to 2,000. Whitespace only (spaces, tabs, line breaks) doesn’t count as content. |
+| D4  | **Database:** every request, vote and comment belongs to a user and a request that exist.                                                                                                                                |
+| D5  | **Database:** one vote per user per request.                                                                                                                                                                             |
+| D6  | **Database:** deleting a request deletes its votes and comments (admins delete spam in M8).                                                                                                                              |
+| D7  | **Database:** deleting a user deletes their votes. A deleted person's vote shouldn't keep counting.                                                                                                                      |
+| D8  | Every timestamp is `timestamp with time zone` (`timestamptz`), defaults to the current time, and is never null. (Why: CLAUDE.md, from M3 step 7.)                                                                        |
+| D9  | The home page query stays fast: requests filtered by status, sorted by vote count (highest first), then newest first, 20 per page. Reviewed, not tested.                                                                 |
 
 **Not a database rule:** "submitting a request counts as the author's vote" (PLAN.md). M5 saves the request and that vote together in one transaction.
 
@@ -98,4 +98,20 @@ When the tests pass, before asking me to review, run **`/code-review`** in Claud
 
 ## Jonathan's decisions
 
-_(A to F: one or two sentences each on what you chose and why.)_
+**A. IDs: identity integers.** Every request and comment is public, so it doesn't matter if IDs can be guessed or reveal how many requests exist. Integers give short, readable URLs like `/requests/42` and keep indexes small.
+
+**B. Vote counts: count on read.** The count is always correct because there's nothing to keep in sync. With the vote table's primary key starting with `request_id`, counting is fast at this scale. If it ever gets slow, I can add a stored count later.
+
+**C. Deleted users: cascade.** D1 says every request has an author, so set null would break that rule. The main reason to delete a user in v1 is removing a spammer, and then deleting their requests and comments is what we want. This also deletes other people’s votes and comments on that user’s requests. If real users can delete their own accounts later, I’d need a different approach, such as keeping their content under “deleted user.”
+
+**D. Status: text plus a CHECK.** It matches how `role` works, so the two are consistent and easy to explain. If M8 adds a status, I only need to update the list in the CHECK.
+
+Known Limits: The database check rejects text that’s only spaces, tabs, or line breaks. Some unusual invisible characters, like non-breaking or zero-width spaces, still get through. M5’s input validation will trim and normalize text before saving, which handles those.
+
+**E. Rate limits: counters.** One row per user and action keeps the table small, with no cleanup needed, and it matches the approach Better Auth uses for sign-up. Fixed windows allow small bursts at the edges, which is acceptable for this app. The M5 helper must update the counter in a single atomic statement, so two simultaneous requests can’t both slip under the limit.
+
+**F. Indexes:**
+
+- `vote`: the primary key (request, user) covers counting votes per request and "has this user voted?". `vote_user_id_idx` covers deleting a user's votes.
+- `comment`: (request, created time) loads a request's comments in order, and `comment_author_id_idx` covers deleting a user.
+- `feature_request`: (status, created time) covers filtering by status with newest first. The home page sorts by vote count, so it still counts votes for every request in that status. That’s a deliberate tradeoff at this size. If it gets slow, I’d store the vote count.
