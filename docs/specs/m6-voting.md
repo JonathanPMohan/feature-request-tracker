@@ -92,7 +92,9 @@ PLAN.md's M6 skill is **debugging with Claude**. Once M6 works locally and its t
 2. Find the POST it sent. Note the **`Next-Action`** header (the action's ID), and the body.
 3. Replay that POST with `curl` **without your session cookie**: a signed-out vote, sent the way an attacker would, with no page involved.
 4. Predict what happens, then check: the response, and the `vote` table (it mustn't change).
-5. Then, deliberately, comment out your step 2 check, replay again, and watch the vote go through. Ask me to help you explain why from the server's logs and the database. Put the check back.
+5. Then, deliberately, break the server: comment out step 2c (the `canVote` check). Sign in as the **demo account** in the browser, whose vote button is disabled, and copy its session cookie into the `curl`. Replay it and watch the vote go through: the UI said no, the server said yes. Put the check back, replay, and see it refused again. That's PLAN.md's "hiding a button is not a security control", on the wire.
+
+   (Why not break the signed-out case? Without a session there's no user to vote as: the code would reach `user.id` on `null` and crash with a 500, not vote. Claude's first draft of this step said otherwise.)
 
 You'll write up what you saw in a short section of this file: what an action really is on the wire, and why the check must live inside it.
 
