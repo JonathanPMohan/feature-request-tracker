@@ -4,7 +4,7 @@
 // database: they run in milliseconds on every commit.
 import { describe, expect, it } from "vitest";
 
-import { canBecomeAdmin, canSubmitRequest } from "./permissions";
+import { canBecomeAdmin, canSubmitRequest, canVote } from "./permissions";
 
 describe("canBecomeAdmin", () => {
   it("allows a normal account", () => {
@@ -53,5 +53,49 @@ describe("canSubmitRequest", () => {
   // submit. (Its abuse is capped by the shared rate limit.)
   it("allows the demo account", () => {
     expect(canSubmitRequest({ ...signedIn, isDemo: true })).toBe(true);
+  });
+});
+
+// Unit tests for canVote (M6), written before Jonathan implements it. They
+// follow his decisions A (only active requests) and B (no demo voting).
+describe("canVote", () => {
+  const user = {
+    id: "user-1",
+    name: "Ada",
+    email: "ada@example.com",
+    role: "user",
+    isDemo: false,
+  } as const;
+  const open = { status: "open" } as const;
+
+  it("refuses a visitor", () => {
+    expect(canVote(null, open)).toBe(false);
+  });
+
+  it.each(["open", "planned", "in_progress"] as const)(
+    "allows a signed-in user on a %s request",
+    (status) => {
+      expect(canVote(user, { status })).toBe(true);
+    },
+  );
+
+  // Decision A: votes help decide, so they stop once a request is decided.
+  it.each(["shipped", "declined"] as const)(
+    "refuses everyone on a %s request",
+    (status) => {
+      expect(canVote(user, { status })).toBe(false);
+      expect(canVote({ ...user, role: "admin" }, { status })).toBe(false);
+    },
+  );
+
+  // Admins vote like anyone else; their power is changing status (M8).
+  it("allows an admin on an active request", () => {
+    expect(canVote({ ...user, role: "admin" }, open)).toBe(true);
+  });
+
+  // Decision B: everyone shares the demo account, so its vote would be one
+  // shared, confusing vote on the real board.
+  it("refuses the demo account, even on an active request", () => {
+    expect(canVote({ ...user, isDemo: true }, open)).toBe(false);
   });
 });

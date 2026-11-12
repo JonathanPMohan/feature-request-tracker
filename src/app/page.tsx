@@ -10,7 +10,11 @@ import {
   type StatusFilter,
 } from "@/lib/requests";
 
-import { RequestDate, StatusBadge, VoteCount } from "./requests/request-meta";
+import { getCurrentUser } from "@/lib/session";
+
+import { RequestDate, StatusBadge } from "./requests/request-meta";
+import { VoteButton } from "./requests/vote-button";
+import { renderKey, voteMode } from "./requests/vote-mode";
 
 // The board (spec S1 to S4). Anyone can see it, signed in or not.
 //
@@ -69,11 +73,18 @@ async function Board({
 }: {
   searchParams: PageProps<"/">["searchParams"];
 }) {
-  const params = await searchParams;
+  // Both read the request (the URL, the session cookie), so they run
+  // together rather than one after the other.
+  const [params, user] = await Promise.all([searchParams, getCurrentUser()]);
   // URLs are user input: anything odd falls back to the default (S3, S4).
   const filter = parseStatusFilter(params.status);
   const page = parsePageParam(params.page);
-  const { requests, totalPages } = await listRequests({ filter, page });
+  const { requests, totalPages } = await listRequests({
+    filter,
+    page,
+    viewerId: user?.id ?? null,
+  });
+  const voteKey = renderKey();
 
   return (
     <>
@@ -102,17 +113,26 @@ async function Board({
           className="mt-6 divide-y divide-zinc-200 border-y border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800"
         >
           {requests.map((request) => (
-            <li key={request.id} className="flex flex-col gap-1 py-4">
-              <Link
-                href={`/requests/${request.id}`}
-                className="font-medium hover:underline"
-              >
-                {request.title}
-              </Link>
-              <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
-                <StatusBadge status={request.status} />
-                <VoteCount votes={request.votes} />
-                <RequestDate date={request.createdAt} />
+            <li key={request.id} className="flex items-start gap-4 py-4">
+              <VoteButton
+                key={voteKey}
+                requestId={request.id}
+                title={request.title}
+                votes={request.votes}
+                voted={request.votedByViewer}
+                mode={voteMode(user, request)}
+              />
+              <div className="flex min-w-0 flex-col gap-1">
+                <Link
+                  href={`/requests/${request.id}`}
+                  className="break-words font-medium hover:underline"
+                >
+                  {request.title}
+                </Link>
+                <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
+                  <StatusBadge status={request.status} />
+                  <RequestDate date={request.createdAt} />
+                </div>
               </div>
             </li>
           ))}

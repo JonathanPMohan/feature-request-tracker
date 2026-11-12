@@ -1,6 +1,6 @@
 import "server-only";
 
-import { count, desc, eq, inArray, type SQL } from "drizzle-orm";
+import { count, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { user } from "@/db/auth-schema";
@@ -74,7 +74,20 @@ export type RequestSummary = {
   status: Status;
   createdAt: Date;
   votes: number;
+  /** Whether the person viewing has voted for it (M6, V2). */
+  votedByViewer: boolean;
 };
+
+/**
+ * "Did this viewer vote?", answered from the votes the query already joins:
+ * bool_or is true if any joined vote row is theirs. coalesce turns "no votes
+ * at all" (null) into false. A visitor (no id) never has.
+ */
+function votedBy(viewerId: string | null) {
+  return viewerId
+    ? sql<boolean>`coalesce(bool_or(${vote.userId} = ${viewerId}), false)`
+    : sql<boolean>`false`;
+}
 
 /**
  * One page of the board (S2, S3, S4). The same query as the M4 reference in
@@ -86,9 +99,12 @@ export type RequestSummary = {
 export async function listRequests({
   filter,
   page,
+  viewerId = null,
 }: {
   filter: StatusFilter;
   page: number;
+  /** The signed-in user's id, or null for a visitor. */
+  viewerId?: string | null;
 }): Promise<{ requests: RequestSummary[]; totalPages: number }> {
   const where = statusCondition(filter);
   const votes = count(vote.userId);
@@ -101,6 +117,7 @@ export async function listRequests({
         status: featureRequest.status,
         createdAt: featureRequest.createdAt,
         votes,
+        votedByViewer: votedBy(viewerId),
       })
       .from(featureRequest)
       .leftJoin(vote, eq(vote.requestId, featureRequest.id))
@@ -130,7 +147,10 @@ export type RequestDetail = RequestSummary & {
 };
 
 /** One request, or null if there's no such request (S5). */
-export async function getRequest(id: number): Promise<RequestDetail | null> {
+export async function getRequest(
+  id: number,
+  viewerId: string | null = null,
+): Promise<RequestDetail | null> {
   const [row] = await db
     .select({
       id: featureRequest.id,
@@ -142,6 +162,7 @@ export async function getRequest(id: number): Promise<RequestDetail | null> {
       // it by mistake (S6).
       authorName: user.name,
       votes: count(vote.userId),
+      votedByViewer: votedBy(viewerId),
     })
     .from(featureRequest)
     .innerJoin(user, eq(user.id, featureRequest.authorId))

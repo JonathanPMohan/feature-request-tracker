@@ -88,8 +88,11 @@ test.describe("submitting", () => {
     await expect(
       main(page).getByRole("heading", { level: 1, name: title }),
     ).toBeVisible();
-    // PLAN.md: a new request starts with its author's vote.
-    await expect(main(page).getByText("1 vote", { exact: true })).toBeVisible();
+    // PLAN.md: a new request starts with its author's vote. (Since M6 the
+    // count is shown in the vote button, pressed because it's your vote.)
+    const vote = main(page).getByRole("button", { name: `Vote for ${title}` });
+    await expect(vote).toContainText("1");
+    await expect(vote).toHaveAttribute("aria-pressed", "true");
     await expect(main(page).getByText("by Test Author")).toBeVisible();
 
     // S11: the board shows it straight away, not a stale list from before.
