@@ -92,7 +92,7 @@ PostgreSQL ── Neon (production) · Docker (dev + test)
 | Tests      | Vitest (unit, integration), Playwright (end to end)   | See below                                                    |
 | CI/CD      | GitHub Actions → Vercel; Neon for production Postgres | A preview URL for every PR; merging to `main` deploys        |
 
-**Who writes what:** I (Jonathan) write the **data model** and the **permission checks**. Claude scaffolds around them, writes example tests, and reviews my work.
+**Who writes what:** I (Jonathan) write the **data model** and the **permission checks**. Claude scaffolds around them, writes the tests, and reviews my work.
 
 ---
 
@@ -106,14 +106,14 @@ PostgreSQL ── Neon (production) · Docker (dev + test)
 
 - **The pre-commit hook** runs type checks, lint and unit tests only. It must stay fast: a few seconds, with no Docker needed.
 - **CI** runs the full suite on every PR. Branch protection blocks merging until it passes.
-- **Hybrid authoring:** for each area, Claude writes the first few tests as explained examples. I write the rest, and Claude reviews both. If my tests miss a case, Claude names the gap but doesn't write the test.
+- **Who writes tests:** Claude writes them as working, commented examples, and I study them (changed in M3: I learn best from working code). If I write some myself, Claude reviews them and names any missing case.
 
 ---
 
 ## Milestones
 
 Each milestone gets its own branch and PR, with checks passing before every commit. One milestone is roughly one week at 8–10 hours.
-🧑 = work I write; Claude writes example tests and reviews.
+🧑 = work I write; Claude writes the tests and reviews.
 
 ### First shareable version: M0–M6
 
@@ -131,7 +131,7 @@ Known gap until M8: there's no admin UI to delete spam. Until then, spam is remo
 | **M6**  | Voting                      | Vote toggle, safe against double-clicks; 🧑 permission checks and rate limit; a walkthrough of a signed-out vote sent from the command line being rejected. **→ First shareable version**                                                                                                   | Debugging with Claude                                 |
 | **M7**  | Comments                    | Add and view comments; 🧑 permission checks and rate limit                                                                                                                                                                                                                                  | —                                                     |
 | **M8**  | Admin                       | Set status; delete requests and comments; 🧑 permission checks and admin tests                                                                                                                                                                                                              | `/security-review`                                    |
-| **M9**  | End-to-end tests and launch | Playwright tests for the main paths; README with screenshots and architecture; demo account in production                                                                                                                                                                                   | Polishing a portfolio repo                            |
+| **M9**  | End-to-end tests and launch | Playwright tests for the main paths; README with screenshots and architecture (the demo account went live in M3)                                                                                                                                                                            | Polishing a portfolio repo                            |
 | **M10** | _Optional polish_           | Empty states, loading states, error states, a more refined look (aimed at product-focused roles)                                                                                                                                                                                            | —                                                     |
 
 ### Later (v2 ideas)

@@ -29,6 +29,41 @@
       "when": 1794293061051,
       "tag": "0003_better-auth-rate-limit",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794324381923,
+      "tag": "0004_add-feature-request",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794434794818,
+      "tag": "0005_add-vote",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794434892814,
+      "tag": "0006_add-comment",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794448476753,
+      "tag": "0007_add-action-rate-limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794448695578,
+      "tag": "0008_fix-text-checks",
+      "breakpoints": true
     }
   ]
 }
