@@ -312,3 +312,47 @@ describe("STATUSES", () => {
     expect([...inCheck].sort()).toEqual([...STATUSES].sort());
   });
 });
+
+// M6, V2: the button shows whether *you* voted. The query answers it per
+// request, for whoever is viewing.
+describe("votedByViewer", () => {
+  it("is true only for requests the viewer voted for", async () => {
+    const author = await createUser();
+    const viewer = await createUser();
+    const liked = await seedRequest(author, { title: "Liked" });
+    await seedRequest(author, { title: "Not liked" });
+    await db.execute(
+      sql`insert into vote (user_id, request_id) values (${viewer}, ${liked})`,
+    );
+
+    const { requests } = await listRequests({
+      filter: "all",
+      page: 1,
+      viewerId: viewer,
+    });
+
+    expect(
+      Object.fromEntries(requests.map((r) => [r.title, r.votedByViewer])),
+    ).toEqual({ Liked: true, "Not liked": false });
+  });
+
+  // The author's own first vote counts as theirs (M5: submitting votes).
+  it("is true for the author of a new request", async () => {
+    const author = await createUser();
+    const id = await seedRequest(author);
+
+    expect((await getRequest(id, author))?.votedByViewer).toBe(true);
+  });
+
+  // Control cases: a visitor has never voted, and a request with no votes
+  // at all says false, not null (the coalesce in votedBy).
+  it("is false for a visitor, and for a request with no votes", async () => {
+    const author = await createUser();
+    const id = await seedRequest(author);
+
+    expect((await getRequest(id))?.votedByViewer).toBe(false);
+
+    await db.execute(sql`delete from vote where request_id = ${id}`);
+    expect((await getRequest(id, author))?.votedByViewer).toBe(false);
+  });
+});
