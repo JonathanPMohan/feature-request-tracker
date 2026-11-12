@@ -1,10 +1,10 @@
-// Unit tests for canBecomeAdmin. They fail until Jonathan implements it.
+// Unit tests for the permission checks in permissions.ts.
 //
 // A permission check is a plain function of the user, so these need no
 // database: they run in milliseconds on every commit.
 import { describe, expect, it } from "vitest";
 
-import { canBecomeAdmin } from "./permissions";
+import { canBecomeAdmin, canSubmitRequest } from "./permissions";
 
 describe("canBecomeAdmin", () => {
   it("allows a normal account", () => {
@@ -22,5 +22,36 @@ describe("canBecomeAdmin", () => {
   // make-admin script reports "already an admin" instead.
   it("allows an account that is already an admin", () => {
     expect(canBecomeAdmin({ role: "admin", isDemo: false })).toBe(true);
+  });
+});
+
+// Unit tests for canSubmitRequest (M5), written before Jonathan implemented it.
+describe("canSubmitRequest", () => {
+  const signedIn = {
+    id: "user-1",
+    name: "Ada",
+    email: "ada@example.com",
+    role: "user",
+    isDemo: false,
+  } as const;
+
+  // PLAN.md: submitting requires sign-in. The action also proves this end to
+  // end (actions.int.test.ts); this is the rule on its own.
+  it("refuses a visitor", () => {
+    expect(canSubmitRequest(null)).toBe(false);
+  });
+
+  it("allows a signed-in user", () => {
+    expect(canSubmitRequest(signedIn)).toBe(true);
+  });
+
+  it("allows an admin", () => {
+    expect(canSubmitRequest({ ...signedIn, role: "admin" })).toBe(true);
+  });
+
+  // Reviewers use the demo account to try the app, so it must be able to
+  // submit. (Its abuse is capped by the shared rate limit.)
+  it("allows the demo account", () => {
+    expect(canSubmitRequest({ ...signedIn, isDemo: true })).toBe(true);
   });
 });
