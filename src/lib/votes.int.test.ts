@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { db } from "@/db";
 
 import { createRequestWithVote } from "./requests";
-import { getVoteTarget, setVote } from "./votes";
+import { setVote } from "./votes";
 
 let counter = 0;
 async function createUser() {
@@ -124,40 +124,5 @@ describe("setVote", () => {
 
     expect(await setVote(ada, request, false)).toBe(2);
     expect(await voteRows(request, grace)).toBe(1);
-  });
-});
-
-describe("getVoteTarget", () => {
-  it("returns the request's id and status", async () => {
-    const request = await createRequest();
-    await db.execute(
-      sql`update feature_request set status = 'planned' where id = ${request}`,
-    );
-
-    expect(await getVoteTarget(request)).toEqual({
-      id: request,
-      status: "planned",
-    });
-    // A string works too: form data arrives as text.
-    expect(await getVoteTarget(String(request))).toEqual({
-      id: request,
-      status: "planned",
-    });
-  });
-
-  // V8: anything a hand-made POST could send is "no such request", never a
-  // database error.
-  it.each([
-    ["an id that doesn't exist", 12345],
-    ["zero", 0],
-    ["a negative number", -1],
-    ["a fraction", 1.5],
-    ["too big for Postgres integer", 2147483648],
-    ["text", "abc"],
-    ["null", null],
-    ["an object", { id: 1 }],
-    ["an array", [1]],
-  ])("returns null for %s", async (_name, value) => {
-    expect(await getVoteTarget(value)).toBeNull();
   });
 });

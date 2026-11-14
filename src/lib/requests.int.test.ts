@@ -8,6 +8,7 @@ import { db } from "@/db";
 
 import {
   createRequestWithVote,
+  findRequest,
   getRequest,
   listRequests,
   PAGE_SIZE,
@@ -354,5 +355,42 @@ describe("votedByViewer", () => {
 
     await db.execute(sql`delete from vote where request_id = ${id}`);
     expect((await getRequest(id, author))?.votedByViewer).toBe(false);
+  });
+});
+
+// The lookup the vote and comment actions share (moved here from
+// votes.int.test.ts when getVoteTarget became findRequest, in M7).
+describe("findRequest", () => {
+  it("returns the request's id and status", async () => {
+    const request = await seedRequest(await createUser());
+    await db.execute(
+      sql`update feature_request set status = 'planned' where id = ${request}`,
+    );
+
+    expect(await findRequest(request)).toEqual({
+      id: request,
+      status: "planned",
+    });
+    // A string works too: form data arrives as text.
+    expect(await findRequest(String(request))).toEqual({
+      id: request,
+      status: "planned",
+    });
+  });
+
+  // V8: anything a hand-made POST could send is "no such request", never a
+  // database error.
+  it.each([
+    ["an id that doesn't exist", 12345],
+    ["zero", 0],
+    ["a negative number", -1],
+    ["a fraction", 1.5],
+    ["too big for Postgres integer", 2147483648],
+    ["text", "abc"],
+    ["null", null],
+    ["an object", { id: 1 }],
+    ["an array", [1]],
+  ])("returns null for %s", async (_name, value) => {
+    expect(await findRequest(value)).toBeNull();
   });
 });

@@ -2,12 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { listComments } from "@/lib/comments";
 import { getRequest, parseRequestId } from "@/lib/requests";
 import { getCurrentUser } from "@/lib/session";
 
 import { RequestDate, StatusBadge } from "../request-meta";
 import { VoteButton } from "../vote-button";
 import { renderKey, voteMode } from "../vote-mode";
+import { Comments } from "./comments";
 
 // One request (spec S5, S6).
 //
@@ -45,7 +47,13 @@ async function RequestDetails({
   const requestId = parseRequestId(id);
   if (requestId === null) notFound();
 
-  const request = await getRequest(requestId, user?.id ?? null);
+  // Both at once, for speed on real requests. The cost: an id that doesn't
+  // exist also runs the comments query (which finds nothing). Accepted, and
+  // noted after /code-review.
+  const [request, comments] = await Promise.all([
+    getRequest(requestId, user?.id ?? null),
+    listComments(requestId),
+  ]);
   if (!request) notFound();
 
   return (
@@ -76,6 +84,14 @@ async function RequestDetails({
       <p className="mt-6 whitespace-pre-line break-words">
         {request.description}
       </p>
+      <Comments
+        request={request}
+        comments={comments}
+        user={user}
+        // Made per request on the server, never in the browser (see
+        // comment-form.tsx). A new page load starts a new comment.
+        submissionKey={crypto.randomUUID()}
+      />
     </article>
   );
 }

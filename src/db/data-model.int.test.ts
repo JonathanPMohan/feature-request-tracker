@@ -21,7 +21,7 @@ const CODES = {
   FOREIGN_KEY: "23503", // pointed at a row that doesn't exist
   UNIQUE: "23505", // a duplicate of something that must be unique
   CHECK: "23514", // a CHECK constraint said no
-  ENUM: "22P02", // a value isn't in the enum type
+  ENUM: "22P02", // invalid input syntax: not in the enum, or not a uuid
   TOO_LONG: "22001", // longer than a varchar(n) allows
 } as const;
 
@@ -624,5 +624,67 @@ describe("timestamps", () => {
       expect(row.is_nullable, where).toBe("NO");
       expect(row.column_default, where).toMatch(/now\(\)|CURRENT_TIMESTAMP/i);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M7 decision C: the comment submission key
+// ---------------------------------------------------------------------------
+
+describe("comment submission key", () => {
+  async function commentWithKey(
+    requestId: string | number,
+    authorId: string,
+    key: string,
+  ) {
+    return errorCode(
+      sql`insert into comment (request_id, author_id, body, submission_key)
+          values (${requestId}, ${authorId}, 'Yes please!', ${key})`,
+    );
+  }
+
+  it("refuses a second comment from the same author with the same key", async () => {
+    const author = await createUser();
+    const request = await createRequest(author);
+    const key = crypto.randomUUID();
+
+    expect(await commentWithKey(request, author, key)).toBeNull();
+    expect(await commentWithKey(request, author, key)).toBe(CODES.UNIQUE);
+  });
+
+  // The constraint is on (author, key): another author's key never collides.
+  it("accepts the same key from two different authors", async () => {
+    const ada = await createUser("Ada");
+    const grace = await createUser("Grace");
+    const request = await createRequest(ada);
+    const key = crypto.randomUUID();
+
+    expect(await commentWithKey(request, ada, key)).toBeNull();
+    expect(await commentWithKey(request, grace, key)).toBeNull();
+  });
+
+  // NOT NULL DEFAULT gen_random_uuid(): a comment inserted without a key
+  // (like every comment before M7) gets its own, so two never collide.
+  it("gives every comment its own key when none is sent", async () => {
+    const author = await createUser();
+    const request = await createRequest(author);
+    await db.execute(addComment(request, author));
+    await db.execute(addComment(request, author));
+
+    const { rows } = await db.execute<{ n: number; keys: number }>(
+      sql`select count(*)::int as n, count(distinct submission_key)::int as keys
+          from comment where author_id = ${author}`,
+    );
+    expect(rows[0]).toEqual({ n: 2, keys: 2 });
+  });
+
+  // The column is uuid, so the database itself refuses anything else.
+  it("refuses a key that isn't a UUID", async () => {
+    const author = await createUser();
+    const request = await createRequest(author);
+
+    expect(await commentWithKey(request, author, "not-a-uuid")).toBe(
+      CODES.ENUM, // 22P02: "invalid input syntax", for enums and uuids alike
+    );
   });
 });

@@ -69,3 +69,26 @@ export function canVote(
   }
   return true;
 }
+
+/**
+ * May this person comment on this request? (M7, used by the comment action
+ * and to show the form.)
+ *
+ * Spec: docs/specs/m7-comments.md: "Your pieces", and decisions A (any
+ * status) and B (not the demo account). Tests: permissions.test.ts.
+ *
+ * Returns boolean, not a type predicate: decision B refuses a signed-in
+ * user (Jonathan's call, for the reason M6 found).
+ */
+export function canComment(
+  user: CurrentUser | null,
+  _request: { status: Status },
+): boolean {
+  if (user === null) {
+    return false; // visitors can't comment, even on open requests
+  }
+  if (user.isDemo) {
+    return false; // the shared demo account can't comment
+  }
+  return true;
+}

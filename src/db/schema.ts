@@ -13,6 +13,8 @@ import {
   text,
   timestamp,
   primaryKey,
+  unique,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 import { user } from "./auth-schema";
@@ -82,6 +84,8 @@ export const comment = pgTable(
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
     body: text("body").notNull(),
+    // One random key per comment form, so the same key twice is the same comment.
+    submissionKey: uuid("submission_key").notNull().defaultRandom(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -95,7 +99,12 @@ export const comment = pgTable(
       table.requestId,
       table.createdAt,
     ),
-    index("comment_author_id_idx").on(table.authorId),
+    // One comment per author per key. Its index also covers lookups by author,
+    // including the cascade when a user is deleted.
+    unique("comment_author_submission_key_unique").on(
+      table.authorId,
+      table.submissionKey,
+    ),
   ],
 );
 

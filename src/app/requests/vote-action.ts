@@ -3,7 +3,8 @@
 import { canVote } from "@/lib/permissions";
 import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
 import { getCurrentUser } from "@/lib/session";
-import { getVoteTarget, setVote } from "@/lib/votes";
+import { findRequest } from "@/lib/requests";
+import { setVote } from "@/lib/votes";
 
 import { VOTE_MESSAGES, type VoteResult } from "./vote-state";
 
@@ -40,7 +41,7 @@ export async function setVoteAction(
   }
 
   // b. Does the request exist?
-  const target = await getVoteTarget(requestId);
+  const target = await findRequest(requestId);
   if (target === null) {
     return { ok: false, message: VOTE_MESSAGES.notFound };
   }
