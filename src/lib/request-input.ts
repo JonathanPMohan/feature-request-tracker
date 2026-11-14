@@ -50,7 +50,12 @@ export function hasVisibleText(value: string): boolean {
   return VISIBLE.test(value);
 }
 
-function textField(label: string, max: number) {
+/**
+ * The text rules every user-written field follows (requests in M5, comments
+ * in M7): normalized, no NUL, something visible, at most `max` characters
+ * counted the way Postgres counts.
+ */
+export function textField(label: string, max: number) {
   return (
     z
       // FormData.get() returns null for a missing field (or a File, for an

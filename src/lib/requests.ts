@@ -200,3 +200,35 @@ export async function createRequestWithVote(input: {
     return created.id;
   });
 }
+
+/** What a permission check needs to know about the request it's about. */
+export type ActionTarget = { id: number; status: Status };
+
+/**
+ * The request an action (a vote, a comment) is about, or null if there's no
+ * such request.
+ *
+ * Takes `unknown` because it comes straight from an action's arguments or
+ * form data, and a hand-made POST can send anything: a string, a fraction,
+ * an object, a number too big for Postgres. All of those are "no such
+ * request", the same as an id that simply doesn't exist, never a database
+ * error.
+ */
+export async function findRequest(
+  requestId: unknown,
+): Promise<ActionTarget | null> {
+  const id =
+    typeof requestId === "number" && Number.isInteger(requestId)
+      ? parseRequestId(String(requestId))
+      : typeof requestId === "string"
+        ? parseRequestId(requestId)
+        : null;
+  if (id === null) return null;
+
+  const [row] = await db
+    .select({ id: featureRequest.id, status: featureRequest.status })
+    .from(featureRequest)
+    .where(eq(featureRequest.id, id));
+  // The CHECK on status guarantees one of STATUSES.
+  return row ? { id: row.id, status: row.status as Status } : null;
+}
