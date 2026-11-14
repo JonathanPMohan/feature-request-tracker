@@ -39,7 +39,6 @@ export async function addCommentAction(
   const refuse = (message: string): CommentState => ({ ...keep, message });
 
   // ── Step 1: who is this? ──────────────────────────────────
-  // Replace this line: read the user with getCurrentUser() (@/lib/session).
   const user = await getCurrentUser();
 
   // ── Step 2: are they allowed? ─────────────────────────────
@@ -80,10 +79,7 @@ export async function addCommentAction(
     };
   }
 
-  // ── Step 4 (🧑 Jonathan): under the limit? Last, it uses up quota. ──────
-  // Call consumeRateLimit(user.id, "comment") (@/lib/rate-limit). If it's
-  // refused, return refuse(rateLimitMessage(result.retryAfterSeconds)).
-  // Replace this line with it:
+  // ── Step 4: under the limit? Last, it uses up quota. ──────
   const result = await consumeRateLimit(user.id, "comment");
   if (!result.allowed) {
     return refuse(rateLimitMessage(result.retryAfterSeconds));
