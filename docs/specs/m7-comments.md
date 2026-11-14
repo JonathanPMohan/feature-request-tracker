@@ -108,4 +108,10 @@ Editing or deleting your own comment (not in v1), admin deletion (M8), replies a
 
 ## Jonathan's decisions
 
-_(A, B and C: what you chose, and one sentence on why.)_
+**A. Comments on all statuses.** Comments are a conversation that can continue after a decision.
+
+**B. The demo account can't comment.** It's shared, so its comments would be anonymous and an easy spam path.
+
+**C. A submission key with a unique constraint.** Double-submits: a submission key with a unique constraint. Each comment form gets a random key, and a unique constraint on (author_id, submission_key) means the same key can only save one comment, so a double-click or retry can’t create a duplicate. It’s scoped to the author so no one can block another person’s comment by reusing their key. The column is uuid NOT NULL DEFAULT gen_random_uuid(), so every comment has a key, including existing ones. I dropped comment_author_id_idx because the unique constraint’s index starts with author_id and already covers lookups by author.
+
+`canComment` returns `boolean`: decision B refuses a signed-in user, so a type predicate would tell TypeScript something false.

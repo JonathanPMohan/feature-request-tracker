@@ -4,7 +4,12 @@
 // database: they run in milliseconds on every commit.
 import { describe, expect, it } from "vitest";
 
-import { canBecomeAdmin, canSubmitRequest, canVote } from "./permissions";
+import {
+  canBecomeAdmin,
+  canComment,
+  canSubmitRequest,
+  canVote,
+} from "./permissions";
 
 describe("canBecomeAdmin", () => {
   it("allows a normal account", () => {
@@ -98,4 +103,43 @@ describe("canVote", () => {
   it("refuses the demo account, even on an active request", () => {
     expect(canVote({ ...user, isDemo: true }, open)).toBe(false);
   });
+});
+
+// Unit tests for canComment (M7), written before Jonathan implements it. They
+// follow his decisions A (comments on any status) and B (no demo comments).
+describe("canComment", () => {
+  const user = {
+    id: "user-1",
+    name: "Ada",
+    email: "ada@example.com",
+    role: "user",
+    isDemo: false,
+  } as const;
+  const open = { status: "open" } as const;
+
+  it("refuses a visitor", () => {
+    expect(canComment(null, open)).toBe(false);
+  });
+
+  // Decision A: comments are a conversation that can continue after a
+  // decision. The difference from canVote, which stops at shipped/declined.
+  it.each(["open", "planned", "in_progress", "shipped", "declined"] as const)(
+    "allows a signed-in user on a %s request",
+    (status) => {
+      expect(canComment(user, { status })).toBe(true);
+    },
+  );
+
+  it("allows an admin", () => {
+    expect(canComment({ ...user, role: "admin" }, open)).toBe(true);
+  });
+
+  // Decision B: a shared account's comments would be anonymous, and an easy
+  // spam path. On every status, decided or not.
+  it.each(["open", "shipped"] as const)(
+    "refuses the demo account on a %s request",
+    (status) => {
+      expect(canComment({ ...user, isDemo: true }, { status })).toBe(false);
+    },
+  );
 });
