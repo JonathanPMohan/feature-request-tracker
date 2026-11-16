@@ -92,3 +92,31 @@ export function canComment(
   }
   return true;
 }
+
+// ── M8: admin ────────────────────────────────────────────────────────────────
+// One check per action (Jonathan's decision C). Spec: docs/specs/m8-admin.md.
+// Tests: permissions.test.ts. All return boolean: they refuse signed-in users.
+
+/** May this person change a request's status? */
+export function canChangeStatus(user: CurrentUser | null): boolean {
+  if (user === null) {
+    return false; // visitors can't manage requests
+  }
+  return user.role === "admin";
+}
+
+/** May this person delete a request (and with it, its votes and comments)? */
+export function canDeleteRequest(user: CurrentUser | null): boolean {
+  if (user === null) {
+    return false; // visitors can't delete requests
+  }
+  return user.role === "admin";
+}
+
+/** May this person delete a comment? */
+export function canDeleteComment(user: CurrentUser | null): boolean {
+  if (user === null) {
+    return false; // visitors can't delete comments
+  }
+  return user.role === "admin";
+}

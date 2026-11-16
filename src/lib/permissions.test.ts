@@ -6,7 +6,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   canBecomeAdmin,
+  canChangeStatus,
   canComment,
+  canDeleteComment,
+  canDeleteRequest,
   canSubmitRequest,
   canVote,
 } from "./permissions";
@@ -142,4 +145,39 @@ describe("canComment", () => {
       expect(canComment({ ...user, isDemo: true }, { status })).toBe(false);
     },
   );
+});
+
+// Unit tests for the admin checks (M8), written before Jonathan implements
+// them. Today all three share one rule, "admins only", so they're tested
+// together; if one changes (decision C), its own row in this table changes.
+describe.each([
+  ["canChangeStatus", canChangeStatus],
+  ["canDeleteRequest", canDeleteRequest],
+  ["canDeleteComment", canDeleteComment],
+] as const)("%s", (_name, check) => {
+  const user = {
+    id: "user-1",
+    name: "Ada",
+    email: "ada@example.com",
+    role: "user",
+    isDemo: false,
+  } as const;
+
+  it("allows an admin", () => {
+    expect(check({ ...user, role: "admin" })).toBe(true);
+  });
+
+  it("refuses a normal user", () => {
+    expect(check(user)).toBe(false);
+  });
+
+  // The database already refuses a demo admin (M3), so a demo user is
+  // always role "user". Tested anyway: the rule is "admins", nothing else.
+  it("refuses the demo account", () => {
+    expect(check({ ...user, isDemo: true })).toBe(false);
+  });
+
+  it("refuses a visitor", () => {
+    expect(check(null)).toBe(false);
+  });
 });
