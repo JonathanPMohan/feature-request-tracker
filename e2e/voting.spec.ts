@@ -84,6 +84,12 @@ test.describe("voting", () => {
     await button.click();
     await expect(button).toHaveAttribute("aria-pressed", "true");
     await expect(button).toContainText("1");
+    // The count above is the optimistic guess, shown before the server
+    // answers. Wait for the answer (the button is enabled again) before
+    // reloading, or the reload can load the page before the vote is saved.
+    // Since M8 a vote is a transaction, a little slower, and this test began
+    // failing without the wait: the same race as the double-click test.
+    await expect(button).toBeEnabled();
 
     // It was saved, not just shown: a fresh load agrees.
     await page.reload();

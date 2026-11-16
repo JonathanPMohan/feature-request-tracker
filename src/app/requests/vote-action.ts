@@ -2,8 +2,8 @@
 
 import { canVote } from "@/lib/permissions";
 import { consumeRateLimit, rateLimitMessage } from "@/lib/rate-limit";
+import { withRequestLocked } from "@/lib/requests";
 import { getCurrentUser } from "@/lib/session";
-import { findRequest } from "@/lib/requests";
 import { setVote } from "@/lib/votes";
 
 import { VOTE_MESSAGES, type VoteResult } from "./vote-state";
@@ -40,31 +40,32 @@ export async function setVoteAction(
     return { ok: false, message: VOTE_MESSAGES.signIn };
   }
 
-  // b. Does the request exist?
-  const target = await findRequest(requestId);
-  if (target === null) {
-    return { ok: false, message: VOTE_MESSAGES.notFound };
-  }
+  // Everything below runs with the request's row locked, so its status
+  // can't change between the check (2c) and the write (5). Fixes #14.
+  return withRequestLocked(requestId, async (target, tx) => {
+    // b. Does the request exist?
+    if (target === null) {
+      return { ok: false, message: VOTE_MESSAGES.notFound };
+    }
 
-  // c. The demo account and closed requests can't vote.
-  if (!canVote(user, target)) {
-    return { ok: false, message: VOTE_MESSAGES.notAllowed };
-  }
+    // c. The demo account and closed requests can't vote.
+    if (!canVote(user, target)) {
+      return { ok: false, message: VOTE_MESSAGES.notAllowed };
+    }
 
-  // ── Step 3: is the input valid? ─────────────────────────────────────────
-  // Only true or false. Not "true", not 1: a hand-made POST could send those,
-  // and guessing what they meant is how bugs get in.
-  if (typeof voted !== "boolean") {
-    return { ok: false, message: VOTE_MESSAGES.invalid };
-  }
+    // ── Step 3: is the input valid? ───────────────────────────────────────
+    if (typeof voted !== "boolean") {
+      return { ok: false, message: VOTE_MESSAGES.invalid };
+    }
 
-  // ── Step 4: under the limit? Last, because it uses up quota. ────────────
-  const result = await consumeRateLimit(user.id, "vote");
-  if (!result.allowed) {
-    return { ok: false, message: rateLimitMessage(result.retryAfterSeconds) };
-  }
+    // ── Step 4: under the limit? Last, because it uses up quota. ──────────
+    const result = await consumeRateLimit(user.id, "vote");
+    if (!result.allowed) {
+      return { ok: false, message: rateLimitMessage(result.retryAfterSeconds) };
+    }
 
-  // ── Step 5: save ────────────────────────────────────────────────────────
-  const votes = await setVote(user.id, target.id, voted);
-  return { ok: true, voted, votes };
+    // ── Step 5: save, inside the locked transaction (tx). ─────────────────
+    const votes = await setVote(user.id, target.id, voted, tx);
+    return { ok: true, voted, votes };
+  });
 }
