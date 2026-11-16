@@ -4,11 +4,13 @@ import { Suspense } from "react";
 
 import { listComments } from "@/lib/comments";
 import { getRequest, parseRequestId } from "@/lib/requests";
+import { canChangeStatus, canDeleteRequest } from "@/lib/permissions";
 import { getCurrentUser } from "@/lib/session";
 
 import { RequestDate, StatusBadge } from "../request-meta";
 import { VoteButton } from "../vote-button";
 import { renderKey, voteMode } from "../vote-mode";
+import { RequestAdminControls } from "./admin-controls";
 import { Comments } from "./comments";
 
 // One request (spec S5, S6).
@@ -78,6 +80,15 @@ async function RequestDetails({
           by {request.authorName} on <RequestDate date={request.createdAt} />
         </span>
       </div>
+      {/* A1: admins only. Today one rule covers both; the two checks are
+          separate (Jonathan's decision C) in case that ever changes. */}
+      {(canChangeStatus(user) || canDeleteRequest(user)) && (
+        <RequestAdminControls
+          requestId={request.id}
+          title={request.title}
+          status={request.status}
+        />
+      )}
       {/* React escapes text, so a description containing <script> shows as
           those characters and never runs (S6). whitespace-pre-line keeps the
           author's line breaks without needing any HTML. */}

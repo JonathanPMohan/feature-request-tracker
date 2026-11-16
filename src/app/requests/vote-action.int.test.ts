@@ -233,3 +233,73 @@ describe("setVoteAction", () => {
     expect(await voteCount(request)).toBe(1);
   });
 });
+
+// ---------------------------------------------------------------------------
+// M8, issue #14: a vote and a status change at the same moment
+// ---------------------------------------------------------------------------
+//
+// The race, made to happen every time instead of by luck: a separate
+// connection starts changing the status to "shipped" and doesn't commit yet,
+// so the change is in progress, holding the row. Then a vote arrives.
+//
+// - Without the lock, the vote reads the last COMMITTED status, "open", says
+//   yes, and writes. The status change then commits: a vote now sits on a
+//   shipped request, which M6's decision A says is frozen.
+// - With the lock (withRequestLocked), the vote's FOR SHARE waits for the
+//   status change to finish, then reads "shipped" and is refused.
+describe("a vote during a status change (#14)", () => {
+  it("never lands on a request that has just been decided", async () => {
+    const voter = await signInAs();
+    const request = await createRequest("open");
+
+    const other = await db.$client.connect();
+    try {
+      await other.query("begin");
+      await other.query(
+        "update feature_request set status = 'shipped' where id = $1",
+        [request],
+      );
+
+      const voting = setVoteAction(request, true);
+      // Give the vote time to reach the database while the change is held.
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await other.query("commit");
+
+      expect(await voting).toEqual({
+        ok: false,
+        message: VOTE_MESSAGES.notAllowed,
+      });
+    } finally {
+      other.release();
+    }
+
+    const { rows } = await db.execute<{ n: number }>(
+      sql`select count(*)::int as n from vote
+          where request_id = ${request} and user_id = ${voter.id}`,
+    );
+    expect(rows[0].n).toBe(0);
+  });
+
+  // Control case: if the status change is undone (rolled back), the vote
+  // that waited for it goes through, because the request is still open.
+  it("lets the vote through when the status change is rolled back", async () => {
+    await signInAs();
+    const request = await createRequest("open");
+
+    const other = await db.$client.connect();
+    try {
+      await other.query("begin");
+      await other.query(
+        "update feature_request set status = 'shipped' where id = $1",
+        [request],
+      );
+      const voting = setVoteAction(request, true);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await other.query("rollback");
+
+      expect(await voting).toMatchObject({ ok: true, voted: true, votes: 2 });
+    } finally {
+      other.release();
+    }
+  });
+});

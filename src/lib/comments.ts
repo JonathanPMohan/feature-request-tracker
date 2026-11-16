@@ -100,3 +100,15 @@ function postgresCode(error: unknown): string | undefined {
   const e = error as { code?: string; cause?: { code?: string } };
   return e.code ?? e.cause?.code;
 }
+
+/**
+ * Deletes one comment (M8, A5). Returns its request's id, so the page can be
+ * refreshed, or null if there was nothing to delete (already gone).
+ */
+export async function deleteComment(id: number): Promise<number | null> {
+  const [row] = await db
+    .delete(comment)
+    .where(eq(comment.id, id))
+    .returning({ requestId: comment.requestId });
+  return row?.requestId ?? null;
+}

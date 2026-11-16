@@ -1,11 +1,12 @@
 import Link from "next/link";
 
 import type { CommentView } from "@/lib/comments";
-import { canComment } from "@/lib/permissions";
+import { canComment, canDeleteComment } from "@/lib/permissions";
 import type { ActionTarget } from "@/lib/requests";
 import type { CurrentUser } from "@/lib/session";
 
 import { RequestDate } from "../request-meta";
+import { DeleteCommentButton } from "./admin-controls";
 import { CommentForm } from "./comment-form";
 
 // A request's conversation (spec C1 to C3): the comments, oldest first, then
@@ -40,7 +41,14 @@ export function Comments({
                 <span className="font-medium text-zinc-900 dark:text-zinc-100">
                   {comment.authorName}
                 </span>{" "}
-                on <RequestDate date={comment.createdAt} />
+                on <RequestDate date={comment.createdAt} />{" "}
+                {/* A1: admins only. The action checks again (A2). */}
+                {canDeleteComment(user) && (
+                  <DeleteCommentButton
+                    commentId={comment.id}
+                    authorName={comment.authorName}
+                  />
+                )}
               </p>
               {/* Text, never HTML (C2). React escapes it; whitespace-pre-line
                   keeps the author's line breaks. */}
