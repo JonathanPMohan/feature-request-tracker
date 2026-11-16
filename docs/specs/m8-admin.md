@@ -45,7 +45,7 @@ COMMIT;                                                        -- unlocks
 
 `FOR SHARE` lets many votes hold the lock together, so votes don't wait for each other. But changing the status is an `UPDATE`, whose row lock conflicts with `FOR SHARE`: the status can't change while any vote holds the lock, and a vote that locks the row after the update sees the new status. Either way, a vote never writes against a status that's no longer true.
 
-Claude provides `withRequestLocked(requestId, fn)` in `src/lib/requests.ts`: it opens the transaction, locks the row, and calls `fn` with the request (or `null` if it doesn't exist) and the transaction to write with. **🧑 You move your step 2b and 2c into it.** That's the change to your vote action. The test runs a vote and a status change at the same moment, many times, and checks that no vote is ever on a shipped request.
+Claude provides `withRequestLocked(requestId, fn)` in `src/lib/requests.ts`: it opens the transaction, locks the row, and calls `fn` with the request (or `null` if it doesn't exist) and the transaction to write with. **🧑 You move your step 2b and 2c into it.** That's the change to your vote action. The test doesn't rely on timing luck: a second database connection starts a status change and holds it uncommitted while a vote arrives. The vote must wait, then be refused once the request is shipped, with no vote written. A control test rolls the change back instead, and the vote lands.
 
 ## Who writes what
 
@@ -119,4 +119,12 @@ A UI for making admins (the script stays), an audit log of who changed what, edi
 
 ## Jonathan's decisions
 
-_(A to D: what you chose, and one sentence on why.)_
+**A. Any status to any status.** Admins can fix mistakes, and canVote's allow-list automatically reopens or freezes voting when the status changes.
+
+**B. Fix #14 now.** M6 promised frozen votes.
+
+**C. One check per action:** `canChangeStatus`, `canDeleteRequest`, `canDeleteComment`, matching `canVote` and `canComment`.
+
+**D. Split the admin action tests.** Jonathan writes the refusal tests (a visitor, a normal user and the demo account, for each admin action); Claude writes the rest, including the #14 lock test, odd ids and double deletes. Claude stubs the refusal tests with descriptive names.
+
+**No rate limit on admin actions:** agreed.
