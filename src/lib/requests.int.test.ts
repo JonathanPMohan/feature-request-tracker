@@ -8,7 +8,11 @@ import { db } from "@/db";
 
 import {
   createRequestWithVote,
+  deleteRequest,
   findRequest,
+  isStatus,
+  setStatus,
+  withRequestLocked,
   getRequest,
   listRequests,
   PAGE_SIZE,
@@ -393,4 +397,129 @@ describe("findRequest", () => {
   ])("returns null for %s", async (_name, value) => {
     expect(await findRequest(value)).toBeNull();
   });
+});
+
+// ---------------------------------------------------------------------------
+// M8: admin changes, and the lock for issue #14
+// ---------------------------------------------------------------------------
+
+describe("setStatus", () => {
+  it("changes a request's status", async () => {
+    const id = await seedRequest(await createUser());
+
+    expect(await setStatus(id, "planned")).toBe(true);
+    expect((await getRequest(id))?.status).toBe("planned");
+  });
+
+  it("reports a request that doesn't exist", async () => {
+    expect(await setStatus(12345, "planned")).toBe(false);
+  });
+});
+
+describe("deleteRequest", () => {
+  // A4: Jonathan's cascade from M4 takes the votes and comments with it.
+  it("deletes the request with its votes and comments, and nothing else", async () => {
+    const author = await createUser();
+    const spam = await seedRequest(author, { title: "Spam", extraVotes: 2 });
+    const real = await seedRequest(author, { title: "Real" });
+    await db.execute(
+      sql`insert into comment (request_id, author_id, body) values (${spam}, ${author}, 'Buy now')`,
+    );
+
+    expect(await deleteRequest(spam)).toBe(true);
+
+    const { rows } = await db.execute<{
+      requests: number;
+      votes: number;
+      comments: number;
+    }>(
+      sql`select (select count(*)::int from feature_request) as requests,
+                 (select count(*)::int from vote where request_id = ${spam}) as votes,
+                 (select count(*)::int from comment) as comments`,
+    );
+    expect(rows[0]).toEqual({ requests: 1, votes: 0, comments: 0 });
+    expect((await getRequest(real))?.votes).toBe(1);
+  });
+
+  // A7: a second delete (another admin, a double-click) finds nothing.
+  it("reports false when it's already gone", async () => {
+    const id = await seedRequest(await createUser());
+    await deleteRequest(id);
+
+    expect(await deleteRequest(id)).toBe(false);
+  });
+});
+
+describe("withRequestLocked", () => {
+  it("gives the request and a transaction to write with", async () => {
+    const id = await seedRequest(await createUser(), { status: "planned" });
+
+    const seen = await withRequestLocked(id, async (request) => request);
+
+    expect(seen).toEqual({ id, status: "planned" });
+  });
+
+  it("gives null for a request that doesn't exist, or can't", async () => {
+    for (const value of [12345, "abc", 1.5, { id: 1 }, "99999999999"]) {
+      expect(
+        await withRequestLocked(value, async (request) => request),
+      ).toBeNull();
+    }
+  });
+
+  // The point of it: while the lock is held, a status change waits. The
+  // test holds the lock for a moment and checks the UPDATE couldn't finish
+  // before the lock was released.
+  it("makes a status change wait until it's done", async () => {
+    const id = await seedRequest(await createUser());
+    const events: string[] = [];
+
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => (release = resolve));
+    const locked = withRequestLocked(id, async () => {
+      events.push("locked");
+      await held;
+      events.push("unlocking");
+    });
+    // Give the lock time to be taken, then start a status change.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const update = setStatus(id, "shipped").then(() => events.push("updated"));
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(events).toEqual(["locked"]); // the update is still waiting
+
+    release();
+    await Promise.all([locked, update]);
+    expect(events).toEqual(["locked", "unlocking", "updated"]);
+  });
+
+  // Control case: two lock holders don't wait for each other (FOR SHARE),
+  // so votes on the same request stay fast.
+  it("lets two callers hold the lock at the same time", async () => {
+    const id = await seedRequest(await createUser());
+    let inside = 0;
+    let most = 0;
+    const hold = () =>
+      withRequestLocked(id, async () => {
+        inside += 1;
+        most = Math.max(most, inside);
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        inside -= 1;
+      });
+
+    await Promise.all([hold(), hold()]);
+
+    expect(most).toBe(2);
+  });
+});
+
+describe("isStatus", () => {
+  it.each(["open", "planned", "in_progress", "shipped", "declined"])(
+    "accepts %s",
+    (value) => expect(isStatus(value)).toBe(true),
+  );
+
+  it.each(["OPEN", "in progress", "", null, 1, ["open"]])(
+    "refuses %j",
+    (value) => expect(isStatus(value)).toBe(false),
+  );
 });

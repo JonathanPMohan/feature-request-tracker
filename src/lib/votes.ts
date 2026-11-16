@@ -5,6 +5,8 @@ import { and, count, eq } from "drizzle-orm";
 import { db } from "@/db";
 import { vote } from "@/db/schema";
 
+import type { Queryable } from "./requests";
+
 // Voting in the database (spec M6). The vote action calls these after its
 // checks; nothing else writes to the vote table except submitting (M5).
 // The request lookup both actions use is findRequest, in requests.ts.
@@ -25,16 +27,19 @@ export async function setVote(
   userId: string,
   requestId: number,
   voted: boolean,
+  // M8 (#14): pass withRequestLocked's transaction, so the vote is written
+  // while the request's status is locked. Defaults to the plain database.
+  tx: Queryable = db,
 ): Promise<number> {
   if (voted) {
-    await db.insert(vote).values({ userId, requestId }).onConflictDoNothing();
+    await tx.insert(vote).values({ userId, requestId }).onConflictDoNothing();
   } else {
-    await db
+    await tx
       .delete(vote)
       .where(and(eq(vote.userId, userId), eq(vote.requestId, requestId)));
   }
 
-  const [{ votes }] = await db
+  const [{ votes }] = await tx
     .select({ votes: count() })
     .from(vote)
     .where(eq(vote.requestId, requestId));

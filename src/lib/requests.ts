@@ -9,29 +9,17 @@ import { featureRequest, vote } from "@/db/schema";
 // Reading and creating feature requests (spec S1 to S5, S10). Pages and the
 // submit action call these; nothing else touches the tables directly.
 
-export const STATUSES = [
-  "open",
-  "planned",
-  "in_progress",
-  "shipped",
-  "declined",
-] as const;
-export type Status = (typeof STATUSES)[number];
+// The statuses live in statuses.ts, so client components can use them too.
+// Re-exported here, so server code keeps one import.
+import { ACTIVE_STATUSES, STATUSES, type Status } from "./statuses";
 
-/** What the board shows with no filter (M5 decision A). */
-export const ACTIVE_STATUSES: readonly Status[] = [
-  "open",
-  "planned",
-  "in_progress",
-];
-
-export const STATUS_LABELS: Record<Status, string> = {
-  open: "Open",
-  planned: "Planned",
-  in_progress: "In progress",
-  shipped: "Shipped",
-  declined: "Declined",
-};
+export {
+  ACTIVE_STATUSES,
+  isStatus,
+  STATUS_LABELS,
+  STATUSES,
+  type Status,
+} from "./statuses";
 
 export type StatusFilter = "active" | "all" | Status;
 
@@ -217,12 +205,7 @@ export type ActionTarget = { id: number; status: Status };
 export async function findRequest(
   requestId: unknown,
 ): Promise<ActionTarget | null> {
-  const id =
-    typeof requestId === "number" && Number.isInteger(requestId)
-      ? parseRequestId(String(requestId))
-      : typeof requestId === "string"
-        ? parseRequestId(requestId)
-        : null;
+  const id = toRequestId(requestId);
   if (id === null) return null;
 
   const [row] = await db
@@ -231,4 +214,80 @@ export async function findRequest(
     .where(eq(featureRequest.id, id));
   // The CHECK on status guarantees one of STATUSES.
   return row ? { id: row.id, status: row.status as Status } : null;
+}
+
+/**
+ * Something that runs queries: the database itself, or a transaction.
+ * Functions that take one can run inside withRequestLocked's transaction.
+ */
+export type Queryable =
+  typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Runs `fn` in a transaction, with the request's row locked so its status
+ * can't change until `fn` is done (M8, issue #14).
+ *
+ * `fn` gets the request (or null if there's no such request, for any
+ * `requestId` a hand-made POST could send) and the transaction. Everything
+ * that must agree with that status, the permission check and the write,
+ * goes inside `fn`, and writes go through `tx`.
+ *
+ * FOR SHARE: many callers can hold the lock together, so votes don't wait
+ * for each other. An UPDATE of the row (a status change) conflicts with it,
+ * so the status can't change while anyone holds it. When `fn` returns, the
+ * transaction commits and the lock is released; if it throws, it rolls back.
+ */
+export async function withRequestLocked<T>(
+  requestId: unknown,
+  fn: (request: ActionTarget | null, tx: Queryable) => Promise<T>,
+): Promise<T> {
+  const id = toRequestId(requestId);
+  return db.transaction(async (tx) => {
+    if (id === null) return fn(null, tx);
+    const [row] = await tx
+      .select({ id: featureRequest.id, status: featureRequest.status })
+      .from(featureRequest)
+      .where(eq(featureRequest.id, id))
+      .for("share");
+    return fn(row ? { id: row.id, status: row.status as Status } : null, tx);
+  });
+}
+
+/**
+ * Sets a request's status (M8). Returns false if there's no such request.
+ * Expects a valid status and an admin: the action checks both first.
+ */
+export async function setStatus(id: number, status: Status): Promise<boolean> {
+  const rows = await db
+    .update(featureRequest)
+    .set({ status })
+    .where(eq(featureRequest.id, id))
+    .returning({ id: featureRequest.id });
+  return rows.length > 0;
+}
+
+/**
+ * Deletes a request, and with it its votes and comments: Jonathan's ON
+ * DELETE CASCADE from M4 (D6) does that inside Postgres. Returns false if
+ * there was nothing to delete (a second admin, or a double-click, got there
+ * first): not an error, just "already gone".
+ */
+export async function deleteRequest(id: number): Promise<boolean> {
+  const rows = await db
+    .delete(featureRequest)
+    .where(eq(featureRequest.id, id))
+    .returning({ id: featureRequest.id });
+  return rows.length > 0;
+}
+
+/**
+ * A request id from an action's arguments or form data, or null if it can't
+ * be one. Numbers and digit strings only; everything else (fractions,
+ * objects, numbers too big for Postgres) is null.
+ */
+export function toRequestId(value: unknown): number | null {
+  if (typeof value === "number" && Number.isInteger(value)) {
+    return parseRequestId(String(value));
+  }
+  return typeof value === "string" ? parseRequestId(value) : null;
 }

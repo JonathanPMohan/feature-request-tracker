@@ -4,7 +4,12 @@ import { describe, expect, it } from "vitest";
 
 import { db } from "@/db";
 
-import { createComment, findCommentByKey, listComments } from "./comments";
+import {
+  createComment,
+  deleteComment,
+  findCommentByKey,
+  listComments,
+} from "./comments";
 import { createRequestWithVote } from "./requests";
 
 let counter = 0;
@@ -184,5 +189,30 @@ describe("listComments", () => {
 
   it("is empty for a request with no comments", async () => {
     expect(await listComments(await createRequest())).toEqual([]);
+  });
+});
+
+// M8, A5: an admin deletes one comment.
+describe("deleteComment", () => {
+  it("deletes that comment only, and says which request it was on", async () => {
+    const request = await createRequest();
+    const ada = await createUser();
+    for (const body of ["Spam", "Real"]) {
+      await createComment({
+        requestId: request,
+        authorId: ada,
+        body,
+        submissionKey: newKey(),
+      });
+    }
+    const [spam] = await listComments(request);
+
+    expect(await deleteComment(spam.id)).toBe(request);
+    expect((await listComments(request)).map((c) => c.body)).toEqual(["Real"]);
+  });
+
+  // A7: already gone (another admin, a double-click).
+  it("returns null when it's already gone", async () => {
+    expect(await deleteComment(12345)).toBeNull();
   });
 });
