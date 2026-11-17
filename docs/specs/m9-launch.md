@@ -75,7 +75,7 @@ Written for two readers: a recruiter who reads the first screen, and an engineer
 
 `npm run screenshots` uses Playwright to save the board, a request's page and the demo sign-in to `docs/screenshots/`. It only reads, as a visitor, against production by default. It never signs in to production, so it can't change anything there.
 
-The admin view is taken locally, where the test admin can be made. Images are committed, so the README shows them without anything running.
+No admin view: a reviewer can't see it, and taking one would mean signing in as an admin. The README describes the admin controls instead. Images are committed, so the README shows them without anything running.
 
 ### Repo polish
 
