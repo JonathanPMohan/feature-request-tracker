@@ -25,7 +25,7 @@ test("a visitor's vote button leads to sign in", async ({ page }) => {
   await page.goto("/");
   await boardLoaded(page);
   const signInToVote = main(page).getByRole("link", {
-    name: /^Sign in to vote for /,
+    name: /Sign in to vote for /,
   });
   test.skip(
     (await signInToVote.count()) === 0,
@@ -50,7 +50,7 @@ test("the demo account's vote buttons are disabled", async ({ page }) => {
   await expect(page.getByTestId("current-user")).toHaveText(DEMO_ACCOUNT.name);
   await boardLoaded(page);
 
-  const voteButtons = main(page).getByRole("button", { name: /^Vote for / });
+  const voteButtons = main(page).getByRole("button", { name: /Vote for / });
   test.skip((await voteButtons.count()) === 0, "the board has no requests yet");
   await expect(voteButtons.first()).toBeDisabled();
 });
