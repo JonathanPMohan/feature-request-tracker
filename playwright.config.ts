@@ -31,7 +31,17 @@ export default defineConfig({
     // Tests start with the bypass cookie, never the secret itself.
     storageState: vercelBypassSecret() ? BYPASS_STATE_PATH : undefined,
   },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    // M9, L3: the main path again at a phone's size, with touch. Pixel 7
+    // runs on Chromium, so CI needs no second browser. Only the journey:
+    // the feature tests would all pass the same way, just twice as slowly.
+    {
+      name: "phone",
+      use: { ...devices["Pixel 7"] },
+      testMatch: "journey.spec.ts",
+    },
+  ],
   webServer: deployedUrl
     ? undefined
     : {
