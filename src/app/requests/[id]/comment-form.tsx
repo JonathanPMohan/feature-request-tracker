@@ -3,8 +3,10 @@
 import { useActionState, useId } from "react";
 
 import { COMMENT_MAX } from "@/lib/comment-input";
+import { CONNECTION_MESSAGES } from "@/lib/connection";
 
 import { addCommentAction } from "./comment-action";
+import type { CommentState } from "./comment-state";
 
 // The comment form (spec C3, C6, decision C).
 //
@@ -19,7 +21,7 @@ export function CommentForm({
   requestId: number;
   submissionKey: string;
 }) {
-  const [state, formAction, pending] = useActionState(addCommentAction, {});
+  const [state, formAction, pending] = useActionState(postOrExplain, {});
   const errorId = useId();
 
   // Decision C: the key this comment is sent with. The first one comes from
@@ -67,4 +69,28 @@ export function CommentForm({
       </button>
     </form>
   );
+}
+
+/**
+ * The action, plus what happens when it can't reach the server (M10, P1):
+ * the text and a message come back, instead of the page being replaced.
+ *
+ * The key goes back unchanged. Whether the comment was saved is unknown (the
+ * request may have arrived and only the answer got lost), so a retry must be
+ * the SAME comment: if it was saved, the server recognizes the key and
+ * answers "saved" without posting it twice (M7, decision C).
+ */
+async function postOrExplain(
+  previous: CommentState,
+  form: FormData,
+): Promise<CommentState> {
+  try {
+    return await addCommentAction(previous, form);
+  } catch {
+    return {
+      message: CONNECTION_MESSAGES.comment,
+      body: String(form.get("body") ?? ""),
+      submissionKey: String(form.get("submissionKey") ?? ""),
+    };
+  }
 }

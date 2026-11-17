@@ -131,6 +131,27 @@ test.describe("sign-in behavior", () => {
     await expect(page.getByTestId("current-user")).toHaveText("Grace Hopper");
   });
 
+  // M10, P1: a sign-in that can't reach the server says so, and the button
+  // works again. Before M10 it said "Signing in…" forever.
+  test("a sign-in that can't reach the server says so", async ({ page }) => {
+    await page.goto("/sign-in");
+    await page.route("**/*", (route) =>
+      route.request().method() === "POST" ? route.abort() : route.continue(),
+    );
+    await page.getByRole("main").getByLabel("Email").fill(uniqueEmail());
+    await page.getByRole("main").getByLabel("Password").fill(password);
+    const button = page
+      .getByRole("main")
+      .getByRole("button", { name: "Sign in", exact: true });
+
+    await button.click();
+
+    await expect(page.getByRole("main").getByRole("alert")).toHaveText(
+      "We couldn't reach the server. Check your connection and try again.",
+    );
+    await expect(button).toBeEnabled();
+  });
+
   test("a wrong password shows an error and doesn't sign you in", async ({
     page,
     request,

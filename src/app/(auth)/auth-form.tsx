@@ -8,6 +8,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { CONNECTION_MESSAGES } from "@/lib/connection";
+
 // What a submit returns: Better Auth's client gives back { error } on failure
 // instead of throwing, so the form can show the message.
 type SubmitResult = { error?: { message?: string } | null };
@@ -37,7 +39,15 @@ export function AuthForm({
     setPending(true);
     setError(null);
 
-    const { error } = await onSubmit(new FormData(form));
+    // Better Auth answers a refusal with { error }, but a request that
+    // can't reach the server throws instead (M10, P1). Uncaught, the button
+    // would say "Signing in…" forever.
+    let error: SubmitResult["error"];
+    try {
+      ({ error } = await onSubmit(new FormData(form)));
+    } catch {
+      error = { message: CONNECTION_MESSAGES.auth };
+    }
     setPending(false);
 
     if (error) {

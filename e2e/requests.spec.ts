@@ -123,6 +123,40 @@ test.describe("submitting", () => {
     await expect(page).toHaveURL("/requests/new");
   });
 
+  // M10, P1: when the request can't reach the server at all (here the
+  // browser drops it, like going offline), the page stays, with what was
+  // typed and a message. Before M10, Next.js replaced the whole page with
+  // "This page couldn't load", and the text was gone. Back online, the same
+  // form sends it.
+  test("a submit that can't reach the server keeps the text, with a message", async ({
+    page,
+  }) => {
+    await page.goto("/requests/new");
+    await main(page).getByLabel("Title").fill("Written offline");
+    await main(page).getByLabel("Description").fill("Don't lose me.");
+    // Server actions are POSTs to the page. Drop every POST.
+    await page.route("**/*", (route) =>
+      route.request().method() === "POST" ? route.abort() : route.continue(),
+    );
+
+    await main(page).getByRole("button", { name: "Submit request" }).click();
+
+    await expect(main(page).getByRole("alert")).toHaveText(
+      "Your request couldn't be sent. Check your connection and try again.",
+    );
+    await expect(main(page).getByLabel("Title")).toHaveValue("Written offline");
+    await expect(main(page).getByLabel("Description")).toHaveValue(
+      "Don't lose me.",
+    );
+
+    await page.unrouteAll();
+    await main(page).getByRole("button", { name: "Submit request" }).click();
+    await expect(page).toHaveURL(/\/requests\/\d+$/);
+    await expect(
+      main(page).getByRole("heading", { level: 1, name: "Written offline" }),
+    ).toBeVisible();
+  });
+
   // S6: text is shown as text. If the page ever used it as HTML, this script
   // would run and set the flag.
   test("a description containing HTML is shown, never run", async ({

@@ -2,10 +2,11 @@
 
 import { useActionState, useId } from "react";
 
+import { CONNECTION_MESSAGES, isRedirect } from "@/lib/connection";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/request-input";
 
 import { submitRequest } from "./actions";
-import { INITIAL_SUBMIT_STATE } from "./submit-state";
+import { INITIAL_SUBMIT_STATE, type SubmitState } from "./submit-state";
 
 // The submit form (spec S8, S9).
 //
@@ -17,7 +18,7 @@ import { INITIAL_SUBMIT_STATE } from "./submit-state";
 // action checks everything again on the server.
 export function SubmitForm() {
   const [state, formAction, pending] = useActionState(
-    submitRequest,
+    submitOrExplain,
     INITIAL_SUBMIT_STATE,
   );
 
@@ -55,6 +56,31 @@ export function SubmitForm() {
       </button>
     </form>
   );
+}
+
+/**
+ * The action, plus what happens when it can't reach the server (M10, P1).
+ * Without the catch, the error escapes to Next.js, which replaces the page,
+ * and everything typed is gone. Instead, the form gets back what was typed
+ * and a message, exactly as it does when the server refuses.
+ */
+async function submitOrExplain(
+  previous: SubmitState,
+  form: FormData,
+): Promise<SubmitState> {
+  try {
+    return await submitRequest(previous, form);
+  } catch (error) {
+    // Success ends in redirect() to the new request, which throws.
+    if (isRedirect(error)) throw error;
+    return {
+      message: CONNECTION_MESSAGES.submit,
+      values: {
+        title: String(form.get("title") ?? ""),
+        description: String(form.get("description") ?? ""),
+      },
+    };
+  }
 }
 
 function TextField({

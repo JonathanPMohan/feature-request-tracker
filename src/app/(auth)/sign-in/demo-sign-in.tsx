@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { CONNECTION_MESSAGES } from "@/lib/connection";
 import { DEMO_ACCOUNT } from "@/lib/demo-account";
 
 // Lets a reviewer try the app in one click. The details are shown too, so it's
@@ -16,10 +17,16 @@ export function DemoSignIn() {
   async function signInAsDemo() {
     setPending(true);
     setError(null);
-    const { error } = await authClient.signIn.email({
-      email: DEMO_ACCOUNT.email,
-      password: DEMO_ACCOUNT.password,
-    });
+    // A request that can't reach the server throws (M10, P1): see AuthForm.
+    let error: { message?: string } | null;
+    try {
+      ({ error } = await authClient.signIn.email({
+        email: DEMO_ACCOUNT.email,
+        password: DEMO_ACCOUNT.password,
+      }));
+    } catch {
+      error = { message: CONNECTION_MESSAGES.auth };
+    }
     setPending(false);
 
     if (error) {
