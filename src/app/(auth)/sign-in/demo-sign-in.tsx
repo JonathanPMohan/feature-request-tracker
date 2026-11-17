@@ -7,6 +7,8 @@ import { authClient } from "@/lib/auth-client";
 import { CONNECTION_MESSAGES } from "@/lib/connection";
 import { DEMO_ACCOUNT } from "@/lib/demo-account";
 
+import { SECONDARY_BUTTON } from "@/app/ui";
+
 // Lets a reviewer try the app in one click. The details are shown too, so it's
 // clear this is a shared account and anyone can use it.
 export function DemoSignIn() {
@@ -58,7 +60,7 @@ export function DemoSignIn() {
         type="button"
         onClick={signInAsDemo}
         disabled={pending}
-        className="mt-3 rounded-md border border-zinc-300 px-3 py-1.5 font-medium hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className={`mt-3 ${SECONDARY_BUTTON}`}
       >
         {pending ? "Signing in…" : "Sign in as the demo user"}
       </button>

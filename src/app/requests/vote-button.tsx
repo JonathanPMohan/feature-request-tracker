@@ -18,8 +18,9 @@ const BUTTON =
   "flex min-w-14 flex-col items-center rounded-md border px-2 py-1 text-sm tabular-nums";
 const UNVOTED =
   "border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800";
-const VOTED =
-  "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900";
+// Voted: the accent fill, with black text and a visible edge (M10, P7). Not
+// the only signal: aria-pressed tells screen readers, and the count changes.
+const VOTED = "border-accent-edge bg-accent font-semibold text-accent-ink";
 
 /**
  * The vote button (spec V1 to V6).

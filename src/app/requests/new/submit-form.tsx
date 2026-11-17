@@ -5,6 +5,8 @@ import { useActionState, useId } from "react";
 import { CONNECTION_MESSAGES, isRedirect } from "@/lib/connection";
 import { DESCRIPTION_MAX, TITLE_MAX } from "@/lib/request-input";
 
+import { PRIMARY_BUTTON } from "@/app/ui";
+
 import { submitRequest } from "./actions";
 import { INITIAL_SUBMIT_STATE, type SubmitState } from "./submit-state";
 
@@ -50,7 +52,7 @@ export function SubmitForm() {
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-md bg-zinc-900 px-4 py-2 font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className={`self-start ${PRIMARY_BUTTON}`}
       >
         {pending ? "Submitting…" : "Submit request"}
       </button>

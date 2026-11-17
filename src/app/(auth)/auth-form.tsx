@@ -10,6 +10,8 @@ import {
 
 import { CONNECTION_MESSAGES } from "@/lib/connection";
 
+import { PRIMARY_BUTTON } from "@/app/ui";
+
 // What a submit returns: Better Auth's client gives back { error } on failure
 // instead of throwing, so the form can show the message.
 type SubmitResult = { error?: { message?: string } | null };
@@ -76,7 +78,7 @@ export function AuthForm({
       <button
         type="submit"
         disabled={pending}
-        className="mt-2 rounded-md bg-zinc-900 px-4 py-2 font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className={`mt-2 ${PRIMARY_BUTTON}`}
       >
         {pending ? pendingLabel : submitLabel}
       </button>

@@ -12,7 +12,14 @@ export function SiteHeader() {
   return (
     <header className="border-b border-zinc-200 dark:border-zinc-800">
       <div className="mx-auto flex w-full max-w-3xl items-center justify-between px-4 py-3">
-        <Link href="/" className="font-semibold">
+        <Link href="/" className="flex items-center gap-2 font-semibold">
+          {/* The app's icon (app/icon.svg), drawn inline so it needs no
+              extra request. Decorative: the name next to it says it all. */}
+          <svg aria-hidden viewBox="0 0 32 32" className="size-6">
+            <rect width="32" height="32" rx="7" fill="#7cfc00" />
+            <path d="M16 7 L26 21 H6 Z" fill="#000" />
+            <rect x="6" y="23" width="20" height="3" rx="1.5" fill="#000" />
+          </svg>
           Feature Requests
         </Link>
         {/* With cacheComponents, reading cookies outside <Suspense> is a

@@ -5,6 +5,8 @@ import { useActionState, useId } from "react";
 import { COMMENT_MAX } from "@/lib/comment-input";
 import { CONNECTION_MESSAGES } from "@/lib/connection";
 
+import { PRIMARY_BUTTON } from "@/app/ui";
+
 import { addCommentAction } from "./comment-action";
 import type { CommentState } from "./comment-state";
 
@@ -63,7 +65,7 @@ export function CommentForm({
         // Disabled while sending, so a double-click sends once. The key is
         // what makes it safe when it doesn't (decision C).
         disabled={pending}
-        className="self-start rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+        className={`self-start ${PRIMARY_BUTTON}`}
       >
         {pending ? "Posting…" : "Post comment"}
       </button>
