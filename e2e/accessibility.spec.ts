@@ -57,6 +57,33 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expectNoSeriousProblems(page);
     });
 
+    // M10, P3 and P5: the app's own not-found pages, and the board's empty
+    // states. A page past the end is always empty, whatever's in the
+    // database, so it's the one empty state every run can check.
+    test("not found: an unknown address", async ({ page }) => {
+      await page.goto("/no-such-page");
+      await expect(
+        page.getByRole("heading", { name: "Page not found" }),
+      ).toBeVisible();
+      await expectNoSeriousProblems(page);
+    });
+
+    test("not found: a request that doesn't exist", async ({ page }) => {
+      await page.goto("/requests/2147483647");
+      await expect(
+        page.getByRole("heading", { name: "Request not found" }),
+      ).toBeVisible();
+      await expectNoSeriousProblems(page);
+    });
+
+    test("an empty page of the board", async ({ page }) => {
+      await page.goto("/?page=9999");
+      await expect(
+        main(page).getByText("There's nothing on this page."),
+      ).toBeVisible();
+      await expectNoSeriousProblems(page);
+    });
+
     // ── Signed in: local and CI only, since they create an account ────────
 
     test.describe("signed in", () => {

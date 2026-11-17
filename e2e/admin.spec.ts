@@ -98,7 +98,7 @@ test.describe("as an admin", () => {
     await expect(page).toHaveURL("/");
     await page.goto(url);
     await expect(
-      page.getByRole("heading", { name: "This page could not be found." }),
+      page.getByRole("heading", { name: "Request not found" }),
     ).toBeVisible();
   });
 });

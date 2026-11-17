@@ -51,13 +51,28 @@ test("a request that doesn't exist shows the not-found page", async ({
     // earlier visit can't match (CLAUDE.md). The robots tag is in <head>,
     // which is never a hidden page.
     await expect(
-      page.getByRole("heading", { name: "This page could not be found." }),
+      page.getByRole("heading", { name: "Request not found" }),
     ).toBeVisible();
     await expect(page.locator('head meta[name="robots"]')).toHaveAttribute(
       "content",
       "noindex",
     );
   }
+});
+
+// M10, P3: an address the app doesn't have gets the app's own page, with a
+// way back, still marked noindex.
+test("an unknown address shows the app's not-found page", async ({ page }) => {
+  await page.goto("/no-such-page");
+  await expect(
+    page.getByRole("heading", { name: "Page not found" }),
+  ).toBeVisible();
+  await expect(page.locator('head meta[name="robots"]')).toHaveAttribute(
+    "content",
+    "noindex",
+  );
+  await main(page).getByRole("link", { name: "All requests" }).click();
+  await expect(page).toHaveURL("/");
 });
 
 // ── Submitting: creates accounts and requests, so local and CI only ────────
