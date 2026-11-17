@@ -45,12 +45,18 @@ jobs:
             exit 0
           }
 
-          # 1. The secret only ever goes to a Vercel deployment. The pattern must match
-          #    the WHOLE value, so empty input, other hosts, and line breaks all fail.
+          # 1. The secret only ever goes to one of THIS project's deployments (#11).
+          #    Vercel names each one feature-request-tracker-<id>-jonathanpmohan,
+          #    the same pattern as allowedHosts in src/lib/auth-options.ts. <id> is
+          #    letters and digits only: no dot, so it can't swallow ".evil.vercel.app",
+          #    and no dash, so it can't swallow another project's name. Any
+          #    *.vercel.app used to pass, which would send the secret to whoever
+          #    owned that project. The pattern must match the WHOLE value, so empty
+          #    input, other hosts, and line breaks all fail.
           url="$RAW_URL"
           case "$url" in http*) ;; *) url="https://$url" ;; esac
-          if [[ ! "$url" =~ ^https://[a-z0-9-]+\.vercel\.app/?$ ]]; then
-            echo "::error::Refusing to test that URL: it must look like https://<name>.vercel.app"
+          if [[ ! "$url" =~ ^https://feature-request-tracker-[a-z0-9]+-jonathanpmohan\.vercel\.app/?$ ]]; then
+            echo "::error::Refusing to test that URL: it isn't one of this project's Vercel deployments"
             exit 1
           fi
 
