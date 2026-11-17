@@ -1,12 +1,8 @@
 # Feature Request Tracker
 
-<!--
-  🧑 Jonathan: the opening is yours (M9 spec). One or two sentences in your
-  own words: what this is, and why you built it. Keep the two lines below
-  it: they're what a reviewer needs in their first minute (L4).
--->
+A public board where people submit feature ideas, vote on them, comment, and follow each one from open to shipped.
 
-A public board where people suggest features, vote on what matters, and follow what's planned.
+A PM or product owner can use it to see what users want most and decide what goes on the roadmap next, or simply to gauge interest in a product's direction.
 
 **Try it:** [feature-request-tracker.vercel.app](https://feature-request-tracker.vercel.app). Click **Sign in as the demo user** on the sign-in page, or sign up with any email address.
 
@@ -84,24 +80,27 @@ Three races were found and fixed along the way. Each test makes the race happen 
 | **Integration** | `*.int.test.ts` | Every server action called directly with any input, the database's rules, rate limits, races, password hashing and session expiry, against real Postgres | CI                                       |
 | **End to end**  | [`e2e/`](e2e)   | The app in a real browser: [one request from idea to shipped](e2e/journey.spec.ts), on desktop and at phone width, plus every feature on its own         | CI, and against every Vercel deployment  |
 
-- **Accessibility:** [axe checks](e2e/accessibility.spec.ts) run on the main pages in light and dark mode, and fail on serious problems. Automated checks catch only some problems, though. Trying the app with a keyboard and a screen reader is still needed, and hasn't been done systematically yet.
+- **Accessibility:** [axe checks](e2e/accessibility.spec.ts) run on the main pages in light and dark mode, and fail on serious problems. Automated checks catch only some problems, though. I tested the main path using only the keyboard (Tab, Enter, Space, the arrow keys, and Esc): browsing, signing in, submitting a request, voting, commenting, and the admin controls, including canceling and confirming deletes. Everything was reachable, with visible focus throughout.
 - **Every deployment is tested,** previews and production. When Vercel finishes a deployment, [a workflow](.github/workflows/e2e-deployed.yml) runs the read-only end-to-end tests against it. Tests that create data never run against a real deployment.
 - **Every change goes through a pull request.** `main` is protected, and CI must pass before a merge.
 
 ## How it was built
 
-<!--
-  🧑 Jonathan: this section is yours too (decision C). The draft below
-  uses your own words from the M9 decisions; edit it until it sounds like you.
--->
-
 I built this with [Claude Code](https://claude.com/claude-code), one milestone at a time, each on its own branch and pull request. Before each milestone, a written spec listed its rules, its tests and the decisions to make; they're all in [`docs/specs/`](docs/specs), and [`docs/PLAN.md`](docs/PLAN.md) is the plan they came from.
 
-**Who wrote what.** I wrote the data model, the permission checks and the authorization step in every server action, and made every product and design decision (each spec ends with mine). Claude Code wrote the rest under specs I approved, and I reviewed it. The commits show this: most say `Co-Authored-By: Claude`.
+## Who wrote what
+
+I wrote the data model, the permission checks, and the authorization steps in every server action, learning with Claude as a tutor, and made every product and design decision (each spec ends with mine).
 
 ## What I learned
 
-<!-- 🧑 Jonathan: your own words. -->
+I'm a product manager returning to hands-on development after about five years away. This project was how I got back in, and how I learned to build with AI without handing over the thinking.
+
+- **Enforce rules where they can't be skipped.** A disabled button is a convenience. I proved it by sending a vote from the command line with the server check commented out, and it went through. The real rules live in the server and the database.
+- **Concurrency bugs are real, even in small apps.** Double-clicks, simultaneous comments, and a vote arriving during a status change each needed a specific fix, and a test that proves it.
+- **A test can pass for the wrong reason.** Several times, a test passed without testing anything real, and the fix was to check both the answer and the database.
+- **Secrets leak through copies.** A test recording uploaded publicly contained a secret. Now I think about logs, recordings, and cookies, not just the obvious places.
+- **Working with AI is a product skill.** Writing clear specs, making the decisions, reviewing everything, and asking "how do we know this works?" are the same skills I used as a PM, applied to code.
 
 ## Run it locally
 
