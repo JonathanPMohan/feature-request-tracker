@@ -90,7 +90,9 @@ I built this with [Claude Code](https://claude.com/claude-code), one milestone a
 
 ## Who wrote what
 
-I wrote the data model, the permission checks, and the authorization steps in every server action, learning with Claude as a tutor, and made every product and design decision (each spec ends with mine).
+I wrote the data model and migrations, the permission checks, and the authorization steps in every server action, learning with Claude as a tutor, and I made every product and design decision (each spec ends with mine).
+
+Claude Code wrote the rest under specs I approved: the pages and components, the queries and rate-limit helper, most of the tests, the CI and deployment workflows, and most of this README. I reviewed all of it. The commits show this: most say `Co-Authored-By: Claude`.
 
 ## What I learned
 
