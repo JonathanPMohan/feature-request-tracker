@@ -51,26 +51,52 @@ export function VoteButton({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const reasonId = useId();
+  const countId = useId();
+  const nameId = useId();
 
-  const label = `Vote for ${title}`;
+  // The accessible name is the count, THEN the action: "3 votes. Vote for
+  // Dark mode." WCAG 2.5.3 (Label in Name): a voice-control user says what
+  // they see ("click 3"), so the visible text must be part of the name.
+  // Found by axe in M9. Before, aria-label="Vote for …" replaced the
+  // button's text entirely, so the count was missing from the name, and
+  // screen readers never heard it either.
+  //
+  // aria-labelledby, not the title inside the button: the button's own
+  // text stays "▲ 3 votes", so tests that check the count can't be fooled
+  // by digits in a title.
+  const labelledBy = `${countId} ${nameId}`;
   const count = (
     <>
       <span aria-hidden>▲</span>
-      <span>{shown.votes}</span>
-      <span className="sr-only">{shown.votes === 1 ? "vote" : "votes"}</span>
+      <span id={countId}>
+        {shown.votes}
+        <span className="sr-only">
+          {shown.votes === 1 ? " vote." : " votes."}
+        </span>
+      </span>
     </>
+  );
+  // Hidden from everyone, but still usable as a name: aria-labelledby may
+  // point at hidden elements.
+  const name = (action: string) => (
+    <span id={nameId} hidden>
+      {action} {title}
+    </span>
   );
 
   // A visitor: a link, not a button that fails. Signing in is the next step.
   if (mode === "sign-in") {
     return (
-      <Link
-        href="/sign-in"
-        aria-label={`Sign in to vote for ${title}`}
-        className={`${BUTTON} ${UNVOTED}`}
-      >
-        {count}
-      </Link>
+      <>
+        <Link
+          href="/sign-in"
+          aria-labelledby={labelledBy}
+          className={`${BUTTON} ${UNVOTED}`}
+        >
+          {count}
+        </Link>
+        {name("Sign in to vote for")}
+      </>
     );
   }
 
@@ -82,7 +108,7 @@ export function VoteButton({
         <button
           type="button"
           disabled
-          aria-label={label}
+          aria-labelledby={labelledBy}
           aria-pressed={shown.voted}
           aria-describedby={reasonId}
           title={REASONS[mode]}
@@ -90,6 +116,7 @@ export function VoteButton({
         >
           {count}
         </button>
+        {name("Vote for")}
         <span id={reasonId} className="sr-only">
           {REASONS[mode]}
         </span>
@@ -127,13 +154,14 @@ export function VoteButton({
         // Disabled while a vote is in flight, so a double-click sends one
         // request. A convenience only: the server is safe either way (V4).
         disabled={pending}
-        aria-label={label}
+        aria-labelledby={labelledBy}
         // A toggle button: screen readers say "pressed" when you've voted.
         aria-pressed={shown.voted}
         className={`${BUTTON} ${shown.voted ? VOTED : UNVOTED}`}
       >
         {count}
       </button>
+      {name("Vote for")}
       {error && (
         <span
           role="alert"
