@@ -4,6 +4,8 @@ import { Suspense } from "react";
 
 import { getCurrentUser } from "@/lib/session";
 
+import { FormSkeleton } from "@/app/skeletons";
+
 import { SubmitForm } from "./submit-form";
 
 export const metadata: Metadata = {
@@ -16,7 +18,15 @@ export const metadata: Metadata = {
 export default function NewRequestPage() {
   return (
     <main className="mx-auto w-full max-w-xl px-4 py-12">
-      <Suspense fallback={<p className="text-zinc-500">Loading…</p>}>
+      {/* The heading is static, so it's in the instant shell (M10, P4). Only
+          the form waits for the session. */}
+      <h1 className="text-2xl font-semibold tracking-tight">
+        Submit a request
+      </h1>
+      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+        Your request starts with your vote.
+      </p>
+      <Suspense fallback={<FormSkeleton />}>
         <SignedInOnly />
       </Suspense>
     </main>
@@ -31,15 +41,5 @@ async function SignedInOnly() {
   const user = await getCurrentUser();
   if (!user) redirect("/sign-in");
 
-  return (
-    <>
-      <h1 className="text-2xl font-semibold tracking-tight">
-        Submit a request
-      </h1>
-      <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-        Your request starts with your vote.
-      </p>
-      <SubmitForm />
-    </>
-  );
+  return <SubmitForm />;
 }

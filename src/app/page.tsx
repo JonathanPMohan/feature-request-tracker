@@ -14,6 +14,8 @@ import { getCurrentUser } from "@/lib/session";
 
 import { RequestDate, StatusBadge } from "./requests/request-meta";
 import { VoteButton } from "./requests/vote-button";
+import { BoardSkeleton } from "@/app/skeletons";
+import { PRIMARY_BUTTON, SECONDARY_BUTTON, TEXT_LINK } from "@/app/ui";
 import { renderKey, voteMode } from "./requests/vote-mode";
 
 // The board (spec S1 to S4). Anyone can see it, signed in or not.
@@ -28,19 +30,14 @@ export default function Home({ searchParams }: PageProps<"/">) {
         <h1 className="text-3xl font-semibold tracking-tight">
           Feature Requests
         </h1>
-        <Link
-          href="/requests/new"
-          className="rounded-md bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
-        >
+        <Link href="/requests/new" className={PRIMARY_BUTTON}>
           Submit a request
         </Link>
       </div>
       <p className="mt-3 text-zinc-600 dark:text-zinc-400">
         Suggest features, vote on what matters, and follow what is planned.
       </p>
-      <Suspense
-        fallback={<p className="mt-8 text-zinc-500">Loading requests…</p>}
-      >
+      <Suspense fallback={<BoardSkeleton />}>
         <Board searchParams={searchParams} />
       </Suspense>
     </main>
@@ -122,16 +119,22 @@ async function Board({
                 voted={request.votedByViewer}
                 mode={voteMode(user, request)}
               />
-              <div className="flex min-w-0 flex-col gap-1">
+              <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <Link
                   href={`/requests/${request.id}`}
                   className="break-words font-medium hover:underline"
                 >
                   {request.title}
                 </Link>
-                <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
+                {/* Decision B: enough to decide whether to open it. One line;
+                    the query already cut it short (EXCERPT_LENGTH). */}
+                <p className="line-clamp-1 break-words text-sm text-zinc-600 dark:text-zinc-400">
+                  {request.excerpt}
+                </p>
+                <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-zinc-600 dark:text-zinc-400">
                   <StatusBadge status={request.status} />
                   <RequestDate date={request.createdAt} />
+                  <CommentCount count={request.commentCount} />
                 </div>
               </div>
             </li>
@@ -146,6 +149,21 @@ async function Board({
   );
 }
 
+/** What an empty filter says (P5): the board's own words for "none". */
+const EMPTY_FILTER: Record<StatusFilter, string> = {
+  active: "No requests here yet.",
+  all: "No requests here yet.",
+  open: "No open requests.",
+  planned: "Nothing planned yet.",
+  in_progress: "Nothing in progress right now.",
+  shipped: "Nothing shipped yet.",
+  declined: "Nothing declined.",
+};
+
+/**
+ * An empty board, or an empty filter, says so and offers the next step
+ * (M10, P5): suggest the first request, or look at all of them.
+ */
 function EmptyBoard({
   pastTheEnd,
   filter,
@@ -153,19 +171,42 @@ function EmptyBoard({
   pastTheEnd: boolean;
   filter: StatusFilter;
 }) {
+  const everything = filter === "active" || filter === "all";
+
   return (
-    <p className="mt-8 text-zinc-600 dark:text-zinc-400">
+    <div className="mt-6 rounded-lg border border-dashed border-zinc-300 px-6 py-10 text-center dark:border-zinc-700">
       {pastTheEnd ? (
-        <>
+        <p className="text-zinc-600 dark:text-zinc-400">
           There&apos;s nothing on this page.{" "}
-          <Link href={boardHref(filter, 1)} className="underline">
+          <Link href={boardHref(filter, 1)} className={TEXT_LINK}>
             Go to page 1
           </Link>
-        </>
+        </p>
       ) : (
-        "No requests here yet."
+        <>
+          <p className="font-medium">{EMPTY_FILTER[filter]}</p>
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            {everything
+              ? "Have an idea? Suggest it, and others can vote for it."
+              : "Requests move here when their status changes."}
+          </p>
+          <div className="mt-5 flex justify-center">
+            {everything ? (
+              // For a visitor, this page sends them to sign in first (S7).
+              <Link href="/requests/new" className={PRIMARY_BUTTON}>
+                Submit a request
+              </Link>
+            ) : (
+              // A new request never starts as Declined or Shipped, so an
+              // empty filter offers the way back, not a new request.
+              <Link href={boardHref("all", 1)} className={SECONDARY_BUTTON}>
+                See all requests
+              </Link>
+            )}
+          </div>
+        </>
       )}
-    </p>
+    </div>
   );
 }
 
@@ -221,5 +262,24 @@ function Pagination({
         )}
       </ul>
     </nav>
+  );
+}
+
+/** Decision B: where the conversation is. Text, so it reads aloud as-is. */
+function CommentCount({ count }: { count: number }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <svg
+        aria-hidden
+        viewBox="0 0 16 16"
+        className="size-3.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      >
+        <path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z" strokeLinejoin="round" />
+      </svg>
+      {count === 1 ? "1 comment" : `${count} comments`}
+    </span>
   );
 }

@@ -55,6 +55,8 @@ test("a request goes from idea to shipped", async ({ browser }, testInfo) => {
   await main(author).getByRole("button", { name: "Submit request" }).click();
   await expect(author).toHaveURL(/\/requests\/\d+$/);
   const requestUrl = author.url();
+  // M10, P6: the tab says which request it is.
+  await expect(author).toHaveTitle(`${title} · Feature Requests`);
   await expect(voteButton(author, title)).toContainText("1");
   await fitsWidth(author);
 

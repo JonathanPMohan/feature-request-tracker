@@ -1,9 +1,10 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
 import { listComments } from "@/lib/comments";
-import { getRequest, parseRequestId } from "@/lib/requests";
+import { getRequest, getRequestTitle, parseRequestId } from "@/lib/requests";
 import { canChangeStatus, canDeleteRequest } from "@/lib/permissions";
 import { getCurrentUser } from "@/lib/session";
 
@@ -12,6 +13,22 @@ import { VoteButton } from "../vote-button";
 import { renderKey, voteMode } from "../vote-mode";
 import { RequestAdminControls } from "./admin-controls";
 import { Comments } from "./comments";
+import { RequestSkeleton } from "@/app/skeletons";
+
+// The tab's title is the request's (M10, P6), so several open requests can
+// be told apart, and a shared link names what it's about. It reads the URL
+// and the database, so it's resolved per request, like the details below.
+export async function generateMetadata({
+  params,
+}: PageProps<"/requests/[id]">): Promise<Metadata> {
+  const requestId = parseRequestId((await params).id);
+  const title = requestId === null ? null : await getRequestTitle(requestId);
+  return {
+    title: title
+      ? `${title} · Feature Requests`
+      : "Request not found · Feature Requests",
+  };
+}
 
 // One request (spec S5, S6).
 //
@@ -31,7 +48,7 @@ export default function RequestPage({ params }: PageProps<"/requests/[id]">) {
       >
         ← All requests
       </Link>
-      <Suspense fallback={<p className="mt-4 text-zinc-500">Loading…</p>}>
+      <Suspense fallback={<RequestSkeleton />}>
         <RequestDetails params={params} />
       </Suspense>
     </main>
