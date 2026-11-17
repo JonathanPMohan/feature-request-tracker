@@ -51,13 +51,28 @@ test("a request that doesn't exist shows the not-found page", async ({
     // earlier visit can't match (CLAUDE.md). The robots tag is in <head>,
     // which is never a hidden page.
     await expect(
-      page.getByRole("heading", { name: "This page could not be found." }),
+      page.getByRole("heading", { name: "Request not found" }),
     ).toBeVisible();
     await expect(page.locator('head meta[name="robots"]')).toHaveAttribute(
       "content",
       "noindex",
     );
   }
+});
+
+// M10, P3: an address the app doesn't have gets the app's own page, with a
+// way back, still marked noindex.
+test("an unknown address shows the app's not-found page", async ({ page }) => {
+  await page.goto("/no-such-page");
+  await expect(
+    page.getByRole("heading", { name: "Page not found" }),
+  ).toBeVisible();
+  await expect(page.locator('head meta[name="robots"]')).toHaveAttribute(
+    "content",
+    "noindex",
+  );
+  await main(page).getByRole("link", { name: "All requests" }).click();
+  await expect(page).toHaveURL("/");
 });
 
 // ── Submitting: creates accounts and requests, so local and CI only ────────
@@ -121,6 +136,40 @@ test.describe("submitting", () => {
     );
     await expect(main(page).getByLabel("Description")).toHaveValue(description);
     await expect(page).toHaveURL("/requests/new");
+  });
+
+  // M10, P1: when the request can't reach the server at all (here the
+  // browser drops it, like going offline), the page stays, with what was
+  // typed and a message. Before M10, Next.js replaced the whole page with
+  // "This page couldn't load", and the text was gone. Back online, the same
+  // form sends it.
+  test("a submit that can't reach the server keeps the text, with a message", async ({
+    page,
+  }) => {
+    await page.goto("/requests/new");
+    await main(page).getByLabel("Title").fill("Written offline");
+    await main(page).getByLabel("Description").fill("Don't lose me.");
+    // Server actions are POSTs to the page. Drop every POST.
+    await page.route("**/*", (route) =>
+      route.request().method() === "POST" ? route.abort() : route.continue(),
+    );
+
+    await main(page).getByRole("button", { name: "Submit request" }).click();
+
+    await expect(main(page).getByRole("alert")).toHaveText(
+      "Your request couldn't be sent. Check your connection and try again.",
+    );
+    await expect(main(page).getByLabel("Title")).toHaveValue("Written offline");
+    await expect(main(page).getByLabel("Description")).toHaveValue(
+      "Don't lose me.",
+    );
+
+    await page.unrouteAll();
+    await main(page).getByRole("button", { name: "Submit request" }).click();
+    await expect(page).toHaveURL(/\/requests\/\d+$/);
+    await expect(
+      main(page).getByRole("heading", { level: 1, name: "Written offline" }),
+    ).toBeVisible();
   });
 
   // S6: text is shown as text. If the page ever used it as HTML, this script

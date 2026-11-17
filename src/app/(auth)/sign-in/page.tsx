@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { DemoSignIn } from "./demo-sign-in";
 import { SignInForm } from "./sign-in-form";
+import { TEXT_LINK } from "@/app/ui";
 
 export const metadata: Metadata = { title: "Sign in · Feature Requests" };
 
@@ -14,7 +15,7 @@ export default function SignInPage() {
       <DemoSignIn />
       <p className="mt-6 text-sm text-zinc-600 dark:text-zinc-400">
         New here?{" "}
-        <Link href="/sign-up" className="underline">
+        <Link href="/sign-up" className={TEXT_LINK}>
           Create an account
         </Link>
       </p>

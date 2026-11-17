@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { authClient } from "@/lib/auth-client";
+import { CONNECTION_MESSAGES } from "@/lib/connection";
 import { DEMO_ACCOUNT } from "@/lib/demo-account";
+
+import { SECONDARY_BUTTON } from "@/app/ui";
 
 // Lets a reviewer try the app in one click. The details are shown too, so it's
 // clear this is a shared account and anyone can use it.
@@ -16,10 +19,16 @@ export function DemoSignIn() {
   async function signInAsDemo() {
     setPending(true);
     setError(null);
-    const { error } = await authClient.signIn.email({
-      email: DEMO_ACCOUNT.email,
-      password: DEMO_ACCOUNT.password,
-    });
+    // A request that can't reach the server throws (M10, P1): see AuthForm.
+    let error: { message?: string } | null;
+    try {
+      ({ error } = await authClient.signIn.email({
+        email: DEMO_ACCOUNT.email,
+        password: DEMO_ACCOUNT.password,
+      }));
+    } catch {
+      error = { message: CONNECTION_MESSAGES.auth };
+    }
     setPending(false);
 
     if (error) {
@@ -51,7 +60,7 @@ export function DemoSignIn() {
         type="button"
         onClick={signInAsDemo}
         disabled={pending}
-        className="mt-3 rounded-md border border-zinc-300 px-3 py-1.5 font-medium hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-900"
+        className={`mt-3 ${SECONDARY_BUTTON}`}
       >
         {pending ? "Signing in…" : "Sign in as the demo user"}
       </button>

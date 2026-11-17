@@ -8,6 +8,7 @@ import type { CurrentUser } from "@/lib/session";
 import { RequestDate } from "../request-meta";
 import { DeleteCommentButton } from "./admin-controls";
 import { CommentForm } from "./comment-form";
+import { TEXT_LINK } from "@/app/ui";
 
 // A request's conversation (spec C1 to C3): the comments, oldest first, then
 // the form, or what to do instead of it.
@@ -30,8 +31,10 @@ export function Comments({
       </h2>
 
       {comments.length === 0 ? (
+        // P5: an empty conversation invites the first comment.
         <p className="mt-4 text-zinc-600 dark:text-zinc-400">
-          No comments yet.
+          No comments yet. Questions, use cases and objections all help decide
+          what gets built.
         </p>
       ) : (
         <ol aria-label="Comments" className="mt-4 flex flex-col gap-6">
@@ -67,7 +70,7 @@ export function Comments({
           <CommentForm requestId={request.id} submissionKey={submissionKey} />
         ) : user === null ? (
           <p className="text-zinc-600 dark:text-zinc-400">
-            <Link href="/sign-in" className="underline">
+            <Link href="/sign-in" className={TEXT_LINK}>
               Sign in to comment
             </Link>
           </p>

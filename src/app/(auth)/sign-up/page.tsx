@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { SignUpForm } from "./sign-up-form";
+import { TEXT_LINK } from "@/app/ui";
 
 export const metadata: Metadata = { title: "Sign up · Feature Requests" };
 
@@ -14,7 +15,7 @@ export default function SignUpPage() {
       <SignUpForm />
       <p className="mt-6 text-sm text-zinc-600 dark:text-zinc-400">
         Already have an account?{" "}
-        <Link href="/sign-in" className="underline">
+        <Link href="/sign-in" className={TEXT_LINK}>
           Sign in
         </Link>
       </p>

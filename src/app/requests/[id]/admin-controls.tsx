@@ -2,6 +2,7 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 
+import { CONNECTION_MESSAGES, isRedirect } from "@/lib/connection";
 import { STATUS_LABELS, STATUSES, type Status } from "@/lib/statuses";
 
 import {
@@ -33,20 +34,12 @@ function useAdminAction() {
       } catch (thrown) {
         // redirect() works by throwing, and Next.js must see it to navigate.
         if (isRedirect(thrown)) throw thrown;
-        setError("That didn't work. Check your connection and try again.");
+        setError(CONNECTION_MESSAGES.admin);
       }
     });
   }
 
   return { pending, error, run };
-}
-
-function isRedirect(error: unknown) {
-  return (
-    error instanceof Error &&
-    "digest" in error &&
-    String(error.digest).startsWith("NEXT_REDIRECT")
-  );
 }
 
 function ErrorMessage({ children }: { children: ReactNode }) {

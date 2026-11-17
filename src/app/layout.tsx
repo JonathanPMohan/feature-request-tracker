@@ -14,6 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  // Link previews need full URLs for their image (M10, P6). Previews share
+  // production's image, which is the one worth showing anyway.
+  metadataBase: new URL("https://feature-request-tracker.vercel.app"),
   title: "Feature Requests",
   description:
     "Suggest features, vote on what matters, and follow what is planned.",

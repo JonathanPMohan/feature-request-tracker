@@ -120,6 +120,39 @@ test.describe("commenting", () => {
   });
 
   // C2: text, never HTML.
+  // M10, P1: a comment that can't reach the server keeps its text, with a
+  // message, instead of the page being replaced. The retry sends the same
+  // key (M7, decision C): if the first one had in fact been saved, the
+  // server would answer "saved" rather than post it twice. Here it never
+  // arrived, so the retry posts it, once.
+  test("a comment that can't reach the server keeps the text, with a message", async ({
+    page,
+  }) => {
+    await signUpAndSubmit(page);
+    await main(page).getByLabel("Add a comment").fill("Typed on a train.");
+    await page.route("**/*", (route) =>
+      route.request().method() === "POST" ? route.abort() : route.continue(),
+    );
+
+    await main(page).getByRole("button", { name: "Post comment" }).click();
+
+    await expect(main(page).getByRole("alert")).toHaveText(
+      "Your comment couldn't be posted. Check your connection and try again.",
+    );
+    await expect(main(page).getByLabel("Add a comment")).toHaveValue(
+      "Typed on a train.",
+    );
+
+    await page.unrouteAll();
+    await main(page).getByRole("button", { name: "Post comment" }).click();
+    await expect(
+      main(page).getByRole("heading", { name: "Comments (1)" }),
+    ).toBeVisible();
+    await expect(
+      main(page).getByRole("list", { name: "Comments" }).getByRole("listitem"),
+    ).toHaveCount(1);
+  });
+
   test("a comment containing HTML is shown, never run", async ({ page }) => {
     await signUpAndSubmit(page);
     const html = '<img src=x onerror="window.__xss = true"> <b>bold?</b>';

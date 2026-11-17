@@ -1,13 +1,33 @@
 @import "tailwindcss";
 
+/*
+  Colors (M10). One accent, Jonathan's neon "Slimer" green, used only where
+  it's readable (docs/specs/m10-polish.md, P7):
+  - --accent is a FILL, always under black text (15.8 : 1).
+  - --accent-text is for text, links and focus rings: the green itself in
+    dark mode (14.9 : 1), a deep green on white (7.1 : 1), because the neon
+    green on white is 1.33 : 1, unreadable.
+  - --accent-edge outlines green fills. On white the fill alone barely
+    shows (1.33 : 1), so it gets a dark edge; in dark mode, its own color.
+*/
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --accent: #7cfc00;
+  --accent-hover: #6ee600;
+  --accent-ink: #000000;
+  --accent-text: #166534;
+  --accent-edge: #18181b;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-text: var(--accent-text);
+  --color-accent-edge: var(--accent-edge);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -16,10 +36,22 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --accent-text: #7cfc00;
+    --accent-edge: #7cfc00;
   }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+}
+
+/*
+  One visible focus ring for everything you can Tab to, in the accent's
+  readable shade. Only for keyboard focus (:focus-visible), so a mouse
+  click doesn't leave a ring behind.
+*/
+:where(a, button, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
 }

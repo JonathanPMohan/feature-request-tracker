@@ -8,6 +8,7 @@ import { db } from "@/db";
 
 import {
   createRequestWithVote,
+  EXCERPT_LENGTH,
   deleteRequest,
   findRequest,
   isStatus,
@@ -147,6 +148,60 @@ describe("listRequests", () => {
 
     const result = await listRequests({ filter: "all", page: 1 });
     expect(result.requests).toMatchObject([{ id, votes: 0 }]);
+  });
+
+  // M10, decision B: a comment count and an excerpt on each row.
+  describe("comment count and excerpt", () => {
+    async function addComments(requestId: number, n: number) {
+      const author = await createUser("Commenter");
+      for (let i = 0; i < n; i++) {
+        await db.execute(
+          sql`insert into comment (request_id, author_id, body)
+              values (${requestId}, ${author}, ${`Comment ${i}`})`,
+        );
+      }
+    }
+
+    it("counts each request's comments, and 0 for none", async () => {
+      const author = await createUser();
+      const talked = await seedRequest(author, { title: "Talked about" });
+      const quiet = await seedRequest(author, { title: "Quiet" });
+      await addComments(talked, 2);
+
+      const { requests } = await listRequests({ filter: "all", page: 1 });
+      expect(requests).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ id: talked, commentCount: 2 }),
+          expect.objectContaining({ id: quiet, commentCount: 0 }),
+        ]),
+      );
+    });
+
+    // The bug a second join would cause: 3 votes x 2 comments = 6 rows, so
+    // both counts would say 6. This is the test that would catch it.
+    it("never lets comments change the vote count, or votes the comment count", async () => {
+      const author = await createUser();
+      const id = await seedRequest(author, { extraVotes: 2 }); // 3 votes
+      await addComments(id, 2);
+
+      const { requests } = await listRequests({ filter: "all", page: 1 });
+      expect(requests).toMatchObject([{ id, votes: 3, commentCount: 2 }]);
+    });
+
+    it("returns the start of the description, never more than the limit", async () => {
+      const author = await createUser();
+      const short = await seedRequest(author, { title: "Short" });
+      const long = await seedRequest(author, { title: "Long" });
+      const longText = "x".repeat(EXCERPT_LENGTH + 50);
+      await db.execute(
+        sql`update feature_request set description = ${longText} where id = ${long}`,
+      );
+
+      const { requests } = await listRequests({ filter: "all", page: 1 });
+      const byId = new Map(requests.map((r) => [r.id, r.excerpt]));
+      expect(byId.get(short)).toBe("Details");
+      expect(byId.get(long)).toBe("x".repeat(EXCERPT_LENGTH));
+    });
   });
 
   describe("status filter (S4, decision A)", () => {

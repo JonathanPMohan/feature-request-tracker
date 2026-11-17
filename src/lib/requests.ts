@@ -4,7 +4,7 @@ import { count, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { db } from "@/db";
 import { user } from "@/db/auth-schema";
-import { featureRequest, vote } from "@/db/schema";
+import { comment, featureRequest, vote } from "@/db/schema";
 
 // Reading and creating feature requests (spec S1 to S5, S10). Pages and the
 // submit action call these; nothing else touches the tables directly.
@@ -66,6 +66,20 @@ export type RequestSummary = {
   votedByViewer: boolean;
 };
 
+/** A row on the board: a summary, plus what M10's decision B adds. */
+export type BoardRequest = RequestSummary & {
+  /** The start of the description, for a one-line preview. */
+  excerpt: string;
+  commentCount: number;
+};
+
+/**
+ * How much of the description the board fetches: more than one line can
+ * show (the page cuts it to fit with CSS), far less than the 5000 allowed.
+ * Cut in SQL, so 20 rows never carry 100,000 characters to show 20 lines.
+ */
+export const EXCERPT_LENGTH = 200;
+
 /**
  * "Did this viewer vote?", answered from the votes the query already joins:
  * bool_or is true if any joined vote row is theirs. coalesce turns "no votes
@@ -78,8 +92,9 @@ function votedBy(viewerId: string | null) {
 }
 
 /**
- * One page of the board (S2, S3, S4). The same query as the M4 reference in
- * src/db/data-model.int.test.ts, written with Drizzle:
+ * One page of the board (S2, S3, S4; M10's excerpt and comment count). The
+ * same query as the M4 reference in src/db/data-model.int.test.ts, written
+ * with Drizzle:
  * - LEFT JOIN, so requests with no votes still appear;
  * - count(vote.user_id), so they count as 0, not 1;
  * - id as the last tie-breaker, so pages never repeat or skip a request.
@@ -93,9 +108,17 @@ export async function listRequests({
   page: number;
   /** The signed-in user's id, or null for a visitor. */
   viewerId?: string | null;
-}): Promise<{ requests: RequestSummary[]; totalPages: number }> {
+}): Promise<{ requests: BoardRequest[]; totalPages: number }> {
   const where = statusCondition(filter);
   const votes = count(vote.userId);
+  // The comment count is a subquery, NOT a second join (M10, decision B).
+  // Joining comments as well as votes would pair every vote row with every
+  // comment row: 3 votes and 2 comments make 6 rows, and both counts would
+  // say 6. A subquery counts comments on their own, once per request.
+  const commentCount = sql<number>`(
+    select count(*)::int from ${comment}
+    where ${comment.requestId} = ${featureRequest.id}
+  )`;
 
   const [rows, [{ total }]] = await Promise.all([
     db
@@ -106,6 +129,8 @@ export async function listRequests({
         createdAt: featureRequest.createdAt,
         votes,
         votedByViewer: votedBy(viewerId),
+        excerpt: sql<string>`left(${featureRequest.description}, ${EXCERPT_LENGTH})`,
+        commentCount,
       })
       .from(featureRequest)
       .leftJoin(vote, eq(vote.requestId, featureRequest.id))
@@ -159,6 +184,18 @@ export async function getRequest(
     .groupBy(featureRequest.id, user.name);
 
   return row ? { ...row, status: row.status as Status } : null;
+}
+
+/**
+ * Only the title, for the browser tab (M10, P6). A separate query, so the
+ * tab title doesn't run the page's vote count again.
+ */
+export async function getRequestTitle(id: number): Promise<string | null> {
+  const [row] = await db
+    .select({ title: featureRequest.title })
+    .from(featureRequest)
+    .where(eq(featureRequest.id, id));
+  return row?.title ?? null;
 }
 
 /**
